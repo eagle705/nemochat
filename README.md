@@ -1,5 +1,7 @@
 # NemoChat
 
+Reusable project-agent workflows: [skills/](skills/README.md) (English procedures + Korean usage guide; loaded through AGENTS.md, not runtime artifacts).
+
 Run CLI examples from the repository root. Use `datasets/` for downloaded/prepared data, `checkpoints/` for downloaded/exported/resumable checkpoints, `results/` for reports/traces/plots, and `logs/` for text/W&B logs. See [runtime layout and historical migration compatibility](docs/en/RUNTIME_LAYOUT.md) ([한국어](docs/ko/RUNTIME_LAYOUT.md)). Create required parent directories, choose fresh output paths, and keep checked-in fixtures/configs in place.
 
 A **noncommercial educational training-systems reference lab**: understand GPU bottlenecks and run reproducible, agent-assisted experiments. The long-term NVIDIA SDK path remains a small Nemotron-inspired hybrid Latent MoE, followed by SFT/RLVR and Super-teacher distillation.

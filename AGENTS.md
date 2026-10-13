@@ -25,6 +25,15 @@ NemoChat is a noncommercial educational NVIDIA SDK tutorial for a small Nemotron
 
 Resolve relative CLI/config paths from the repository-root CWD: `datasets/` for downloaded/prepared inputs, `checkpoints/` for downloaded/exported/resumable weights and state, `results/` for reports/traces/plots, and `logs/` for text/W&B logs. See [runtime layout](docs/en/RUNTIME_LAYOUT.md) ([한국어](docs/ko/RUNTIME_LAYOUT.md)). Pass supported CLI paths explicitly; do not invent experiment-schema fields or implicitly relocate HF caches. Tutorials launched from their own folder must use explicit repository-root paths. Keep versioned configs/fixtures in place. Preserve historical evidence and receipt paths; use the migration manifest for old → new local mappings, never overwrite existing artifacts.
 
+## Project skills
+
+Reusable agent-neutral workflows are in `skills/`. Before a matching task, read the relevant `SKILL.md` and referenced source/docs, loading only what is needed:
+- `skills/nemochat-experiment-validation/SKILL.md`: YAML execution and performance claims.
+- `skills/nemochat-checkpoint-resume/SKILL.md`: checkpoint integrity, transfer and exact resume.
+- `skills/nemochat-observability-validation/SKILL.md`: Lens/Jaeger/source evidence and limits.
+
+Use the current agent's equivalent file/terminal tools; unavailable capabilities must be reported, never fabricated. Skills do not grant authorization or override the user's current request. Root `skills/` is an explicitly read project library, not a claim of automatic skill discovery by every harness. See `skills/README.md` for sharing and Korean guidance.
+
 ## Working conventions
 
 - Use explicit small functions and readable scripts. Avoid generic trainers, registries, factories and speculative abstraction.

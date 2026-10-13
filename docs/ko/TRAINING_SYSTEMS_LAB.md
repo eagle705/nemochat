@@ -1,5 +1,7 @@
 # 에이전트와 함께하는 학습 시스템 reference lab
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 Canonical: [English](../en/TRAINING_SYSTEMS_LAB.md).
 
 ## 목적과 경계
@@ -30,7 +32,8 @@ Canonical: [English](../en/TRAINING_SYSTEMS_LAB.md).
 ## Linear forward/backward planner
 
 ```bash
-.venv/bin/python scripts/plan_training_operator.py --config configs/performance/linear_unmeasured.json --output runs/my-linear-estimate.json
+mkdir -p results/planning
+.venv/bin/python scripts/plan_training_operator.py --config configs/performance/linear_unmeasured.json --output results/planning/my-linear-estimate.json
 ```
 
 부모 디렉터리가 있어야 하고 기존 결과를 덮어쓰지 않는다. `Y=X@W`에서 X:[M,K], W:[K,N]이면 forward, dX, dW의 각 GEMM FLOPs는 `2*M*N*K`다. 논리적 operand bytes는 각 연산에 대해 `(M*K+K*N+M*N)*dtype_bytes`로 계산한다. 실제 cache/tiling/DRAM traffic은 다르다.

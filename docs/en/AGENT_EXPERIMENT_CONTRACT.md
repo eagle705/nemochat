@@ -1,5 +1,7 @@
 # Agent experiment contract (schema 1)
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 This is a **custom offline PyTorch dense control**, not native NemoChat hybrid,
 Bridge/MCore, MoE, Mamba, distributed training, model-quality validation or an
 established speedup. No model/tokenizer/data downloads, remote tracking or network
@@ -11,8 +13,8 @@ From the repository root, with PyYAML installed in the interpreter:
 
 ```bash
 .venv/bin/python scripts/run_experiment.py validate --config configs/experiments/dense_cpu.yaml
-.venv/bin/python scripts/run_experiment.py dry-run --config configs/experiments/dense_cpu.yaml --output runs/dense-preview
-.venv/bin/python scripts/run_experiment.py run --config configs/experiments/dense_cpu.yaml --output runs/dense-new
+.venv/bin/python scripts/run_experiment.py dry-run --config configs/experiments/dense_cpu.yaml --output results/training_perf/dense-preview
+.venv/bin/python scripts/run_experiment.py run --config configs/experiments/dense_cpu.yaml --output results/training_perf/dense-new
 # CUDA template: validation/preview do NOT assert CUDA availability.
 .venv/bin/python scripts/run_experiment.py dry-run --config configs/experiments/dense_cuda.yaml
 ```

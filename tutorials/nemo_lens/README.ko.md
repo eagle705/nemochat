@@ -38,8 +38,8 @@ python3 setup_env.py                  # 이미 있는 실습 .venv는 덮어쓰�
 ss -ltn                              # 사용할 포트가 비어 있는지 확인
 docker compose up -d
 .venv/bin/python verify_jaeger.py      # 실제 API 요청으로 제한 시간 내 준비 상태 확인
-.venv/bin/python train.py --mode otlp --steps 20 --output runs/my-smoke
-.venv/bin/python verify_jaeger.py --result runs/my-smoke/result.json
+.venv/bin/python train.py --mode otlp --steps 20 --output ../../results/nemo_lens/my-smoke
+.venv/bin/python verify_jaeger.py --result ../../results/nemo_lens/my-smoke/result.json
 ```
 
 실제 시작 전 UI `127.0.0.1:16687`, OTLP gRPC `127.0.0.1:14317`,
@@ -91,9 +91,9 @@ docker compose down
 ## 오버헤드 실험
 
 ```bash
-.venv/bin/python benchmark.py --output runs/my-benchmark --steps 400 --warmup 40 --repetitions 8
+.venv/bin/python benchmark.py --output ../../results/nemo_lens/my-benchmark --steps 400 --warmup 40 --repetitions 8
 # Docker 없이 baseline/disabled/file만 실행; OTLP 미실행을 명시적으로 기록
-.venv/bin/python benchmark.py --output runs/my-offline --skip-otlp
+.venv/bin/python benchmark.py --output ../../results/nemo_lens/my-offline --skip-otlp
 .venv/bin/python -m pytest -q test_tutorial.py
 uv pip check --python .venv/bin/python
 ```
@@ -124,9 +124,9 @@ OTLP 반복이 API 수집 검증을 통과해야 합니다. 누락 export는 빠
 이 디렉터리에서 실행한 명령(저장소 전체 테스트가 아님):
 
 ```bash
-.venv/bin/python train.py --mode otlp --steps 20 --output runs/smoke
-.venv/bin/python verify_jaeger.py --result runs/smoke/result.json
-.venv/bin/python benchmark.py --output runs/benchmark-8x400 --steps 400 --warmup 40 --repetitions 8
+.venv/bin/python train.py --mode otlp --steps 20 --output ../../results/nemo_lens/smoke
+.venv/bin/python verify_jaeger.py --result ../../results/nemo_lens/smoke/result.json
+.venv/bin/python benchmark.py --output ../../results/nemo_lens/benchmark-8x400 --steps 400 --warmup 40 --repetitions 8
 .venv/bin/python -m pytest -q test_tutorial.py
 uv pip check --python .venv/bin/python
 .venv/bin/python -m compileall -q train.py benchmark.py verify_jaeger.py setup_env.py test_tutorial.py
@@ -160,8 +160,8 @@ docker compose config --quiet
 ```bash
 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider test_tutorial.py test_exporter_privacy.py
 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python verify_jaeger.py
-PYTHONDONTWRITEBYTECODE=1 .venv/bin/python train.py --mode otlp --steps 20 --output runs/privacy-fix-smoke
-PYTHONDONTWRITEBYTECODE=1 .venv/bin/python verify_jaeger.py --result runs/privacy-fix-smoke/result.json
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python train.py --mode otlp --steps 20 --output ../../results/nemo_lens/privacy-fix-smoke
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python verify_jaeger.py --result ../../results/nemo_lens/privacy-fix-smoke/result.json
 ```
 
 **15 tests passed** (기존 9개 + 개인정보 보호 회귀 6개). 회귀 테스트는 netrc 조회,
@@ -176,3 +176,7 @@ trace: `a9e445e371045b8abdcfae78165c65c3`.
 SDK 설치/import, 실제 optimizer, 정확성 동등성, 로컬 완전 export, readiness와
 집중 테스트는 실행했습니다. GUI 렌더링, GPU/Nsight, CUDA source attribution,
 네이티브 NemoChat 통합, 운영용 관측 시스템은 이 실습으로 검증되지 않았습니다.
+
+## Runtime layout / 실행 자료 경로
+
+Use repository-root `datasets/`, `checkpoints/`, `results/`, and `logs/`; see [runtime layout](../../docs/en/RUNTIME_LAYOUT.md) and [한국어](../../docs/ko/RUNTIME_LAYOUT.md). Relative CLI output paths use the caller working directory. Historical recorded paths/measurements below remain unchanged; prior host artifacts physically migrated, with relative compatibility links and SHA-256 inventory in root `results/runtime-layout-migration.json`. Tutorial benchmark stdout/stderr now go to root `logs/nemo_lens/<output-name>/` (override `--log-output`); use a fresh name for both results and logs.

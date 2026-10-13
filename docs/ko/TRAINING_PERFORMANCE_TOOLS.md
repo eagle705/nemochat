@@ -1,5 +1,7 @@
 # 오프라인 dense 전체 학습 업데이트 성능 도구
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 ## 구현 범위와 증거
 
 `src/nemochat/training_perf.py`는 교육용 **독립 dense causal Transformer**입니다. 시드로 생성한 토큰에서 실제 cross-entropy, backward, AdamW 업데이트를 실행합니다. NemoChat native hybrid Latent MoE/Bridge/MCore 학습은 여전히 미구현입니다. 실제 코퍼스, tokenizer, 다운로드, 품질 평가, 분산 학습, Triton, checkpoint/resume은 포함하지 않으며 WSD/WSM 기본 정책을 바꾸지 않습니다.
@@ -17,14 +19,14 @@
 ```bash
 .venv/bin/python scripts/benchmark_training.py --help
 .venv/bin/python scripts/benchmark_training.py \
-  --config /tmp/dense-control.json --output /tmp/dense-baseline/measurement
+  --config results/training_perf/my-inputs/dense-control.json --output results/training_perf/my-baseline/measurement
 # activation_checkpointing만 true로 바꾼 별도 JSON:
 .venv/bin/python scripts/benchmark_training.py \
-  --config /tmp/dense-checkpoint.json --output /tmp/dense-candidate/measurement
+  --config results/training_perf/my-inputs/dense-checkpoint.json --output results/training_perf/my-candidate/measurement
 .venv/bin/python scripts/compare_training_runs.py \
-  --baseline /tmp/dense-baseline/measurement/result.json \
-  --candidate /tmp/dense-candidate/measurement/result.json \
-  --output /tmp/dense-comparison.json
+  --baseline results/training_perf/my-baseline/measurement/result.json \
+  --candidate results/training_perf/my-candidate/measurement/result.json \
+  --output results/training_perf/my-comparison.json
 .venv/bin/python -m pytest -q tests/test_training_perf.py
 ```
 

@@ -144,3 +144,7 @@ Independent repaired-snapshot re-review subsequently **passed in all three scope
 Not executed: pinned Bridge/TE provider construction, actual 13.8B parameter census, distributed forward/backward, MCore dataset conversion, TP/CP/EP BPB parity, hybrid export/inference parity, Curator GPU operations, long-context updates, SFT/RLVR/MOPD, Dynamo serving.
 
 No Git commit/push, public model/dataset release or external blog publication was performed. Existing project-plan milestones remain plans except for the CPU implementation scope above.
+
+## Runtime-path migration reference
+
+The historical paths, timestamps and results above remain original evidence. For new runs follow the [repository-root runtime layout](en/RUNTIME_LAYOUT.md); locate relocated local artifacts through the runtime migration manifest's old → new mappings. Preserve receipt remote paths/revisions/hashes and inventory-relative payload paths; never overwrite existing artifacts.

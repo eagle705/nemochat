@@ -23,3 +23,7 @@ Canonical: [English verification](../en/TRAINING_SYSTEMS_VERIFICATION.md).
 YAML/direct JSON의 중복 검증이 서로 다른 한계를 적용했다. 부모 회귀 테스트 10개가 이를 재현했으며 shared validator와 실패 상태 전달을 수정 중이다. 최종 suite와 독립 리뷰 전까지 이 문서는 승인 기록이 아니다.
 
 AGENTS.md 수정은 보호 파일 승인 timeout으로 차단되어 우회/재시도하지 않았다. README와 NemoChatAgent.md에 새 진입점과 목표를 연결했다. Commit/push/업로드/GPU 임대는 수행하지 않았다.
+
+## 런타임 경로 migration 참고
+
+위 과거 실행 기록의 경로·timestamp·결과는 원래 증거로 보존합니다. 새 실행은 [저장소 루트 런타임 규약](RUNTIME_LAYOUT.md)을 따르고, 이동된 로컬 산출물은 runtime migration manifest의 old → new 매핑으로 찾습니다. Receipt의 remote path/revision/hash와 inventory 상대 경로를 변경하거나 기존 산출물을 덮어쓰지 않습니다.

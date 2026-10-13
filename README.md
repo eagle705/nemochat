@@ -1,5 +1,7 @@
 # NemoChat
 
+Run CLI examples from the repository root. Use `datasets/` for downloaded/prepared data, `checkpoints/` for downloaded/exported/resumable checkpoints, `results/` for reports/traces/plots, and `logs/` for text/W&B logs. See [runtime layout and historical migration compatibility](docs/en/RUNTIME_LAYOUT.md) ([한국어](docs/ko/RUNTIME_LAYOUT.md)). Create required parent directories, choose fresh output paths, and keep checked-in fixtures/configs in place.
+
 A **noncommercial educational training-systems reference lab**: understand GPU bottlenecks and run reproducible, agent-assisted experiments. The long-term NVIDIA SDK path remains a small Nemotron-inspired hybrid Latent MoE, followed by SFT/RLVR and Super-teacher distillation.
 
 The focus is not another agent application or a generic training framework. It is **prediction → measurement → diagnosis → change → correctness → full-update comparison**, with machine-readable experiment contracts and explicit evidence boundaries.
@@ -31,8 +33,9 @@ There is intentionally no generic trainer/plugin/backend registry. Start at a sc
 Optional dependencies: `.venv/bin/python -m pip install -e '.[hub,tracking]'`.
 
 ```bash
-.venv/bin/python scripts/estimate_corpus.py --config configs/planning/corpus_local_smoke.json --output /tmp/nemochat-corpus-estimate.json
-.venv/bin/python scripts/plan_training.py --config configs/planning/training_measured_example.json --output /tmp/nemochat-budget-plan.json
+mkdir -p results/planning
+.venv/bin/python scripts/estimate_corpus.py --config configs/planning/corpus_local_smoke.json --output results/planning/my-corpus-estimate.json
+.venv/bin/python scripts/plan_training.py --config configs/planning/training_measured_example.json --output results/planning/my-budget-plan.json
 .venv/bin/python scripts/hf_checkpoint.py --help
 ```
 
@@ -45,10 +48,10 @@ Start with one readable, offline **dense Transformer control**, not the unimplem
 ```bash
 .venv/bin/python scripts/run_experiment.py validate --config configs/experiments/dense_cpu.yaml
 .venv/bin/python scripts/run_experiment.py dry-run --config configs/experiments/dense_cpu.yaml
-.venv/bin/python scripts/run_experiment.py run --config configs/experiments/dense_cpu.yaml --output runs/my-dense-control
-.venv/bin/python scripts/run_experiment.py run --config configs/experiments/dense_cpu_checkpointing.yaml --output runs/my-dense-checkpointing
-.venv/bin/python scripts/compare_training_runs.py --baseline runs/my-dense-control/measurement/result.json --candidate runs/my-dense-checkpointing/measurement/result.json --output runs/my-dense-comparison.json
-.venv/bin/python scripts/plan_training_operator.py --config configs/performance/linear_unmeasured.json --output runs/my-linear-estimate.json
+.venv/bin/python scripts/run_experiment.py run --config configs/experiments/dense_cpu.yaml --output results/training_perf/my-dense-control
+.venv/bin/python scripts/run_experiment.py run --config configs/experiments/dense_cpu_checkpointing.yaml --output results/training_perf/my-dense-checkpointing
+.venv/bin/python scripts/compare_training_runs.py --baseline results/training_perf/my-dense-control/measurement/result.json --candidate results/training_perf/my-dense-checkpointing/measurement/result.json --output results/training_perf/my-dense-comparison.json
+.venv/bin/python scripts/plan_training_operator.py --config configs/performance/linear_unmeasured.json --output results/planning/my-linear-estimate.json
 ```
 
 Use a fresh output directory. These commands run actual offline optimizer updates or analytical estimates; generated token replay is **not corpus training or model-quality evidence**. CPU throughput is not a GPU projection. CUDA configurations require a working GPU and separate authorization for rented resources.
@@ -103,7 +106,7 @@ The smoke model is intentionally tiny and poor. Its scores below do not measure 
   --revision 5f91d94bd9cd7190a9f3216ff93cd1dd95f2c7be \
   --texts tests/fixtures/texts.jsonl \
   --core --core-tasks copa --max-per-task 3 \
-  --context-length 128 --output runs/my-base-smoke
+  --context-length 128 --output results/eval/my-base-smoke
 ```
 
 The result contains raw task likelihoods, counts and explicit **partial task subset** scope. Do not present its COPA-only score as full CORE. BPB uses document-local BOS-prefixed chunks; keep the protocol fixed and do not compare it numerically to nanochat's packed-stream BPB without matching context/data semantics.
@@ -112,10 +115,10 @@ The result contains raw task likelihoods, counts and explicit **partial task sub
 
 ```bash
 .venv/bin/python scripts/train_cpu.py \
-  --texts tests/fixtures/texts.jsonl --steps 2 --output runs/my-step-2
+  --texts tests/fixtures/texts.jsonl --steps 2 --output checkpoints/cpu/my-step-2
 .venv/bin/python scripts/train_cpu.py \
   --texts tests/fixtures/texts.jsonl --steps 2 \
-  --resume runs/my-step-2 --output runs/my-resumed
+  --resume checkpoints/cpu/my-step-2 --output checkpoints/cpu/my-resumed
 ```
 
 This writes model **safetensors** plus optimizer/RNG tensors loaded with `weights_only=True`, a data/config contract, and a versioned SHA256 inventory of all checkpoint artifacts. Resume checks the inventory **before loading** model/tokenizer/optimizer state. It detects accidental changes, not malicious manifest rewriting. Historical checkpoints without an inventory require explicit `--allow-unverified-legacy-resume` and remain unverified. Reusing the short fixture is intentional for mechanics testing, not claims about diverse pretraining data. Never overwrite run directories.
@@ -124,7 +127,7 @@ This writes model **safetensors** plus optimizer/RNG tensors loaded with `weight
 
 ```bash
 .venv/bin/python scripts/prepare_data.py \
-  --config configs/data/climbmix_smoke.json --output runs/my-climbmix-smoke
+  --config configs/data/climbmix_smoke.json --output datasets/climbmix/my-smoke
 ```
 
 Review the explicit noncommercial rights acknowledgment in the config before running. This downloads **one selected shard**, capped at 100MB for this smoke, and keeps only a 256-token flat pack; temporary shard/cache is removed. Network bytes can be much larger than selected training bytes. GPT-2 is smoke-only; training uses pinned Super. The flat `.u32` pack is **not** an MCore `.bin/.idx` dataset. No training consumes tokens in this preparation command.
@@ -144,16 +147,16 @@ curl --fail http://127.0.0.1:8766/health
 .venv/bin/python scripts/niah.py generate \
   --tokenizer sshleifer/tiny-gpt2 --revision 5f91d94bd9cd7190a9f3216ff93cd1dd95f2c7be \
   --context-lengths 128 256 --depths 0 .5 1 --samples 1 \
-  --generation-tokens 32 --output runs/my-niah/fixtures.jsonl
+  --generation-tokens 32 --output datasets/niah/my-smoke/fixtures.jsonl
 .venv/bin/python scripts/niah.py run \
   --tokenizer sshleifer/tiny-gpt2 --revision 5f91d94bd9cd7190a9f3216ff93cd1dd95f2c7be \
-  --input runs/my-niah/fixtures.jsonl --output runs/my-niah/predictions.jsonl \
+  --input datasets/niah/my-smoke/fixtures.jsonl --output results/niah/my-smoke/predictions.jsonl \
   --endpoint http://127.0.0.1:8766/v1/completions --model sshleifer/tiny-gpt2
 .venv/bin/python scripts/niah.py score \
-  --input runs/my-niah/predictions.jsonl --output runs/my-niah/cells.jsonl \
-  --csv runs/my-niah/cells.csv
+  --input results/niah/my-smoke/predictions.jsonl --output results/niah/my-smoke/cells.jsonl \
+  --csv results/niah/my-smoke/cells.csv
 .venv/bin/python scripts/niah.py plot \
-  --input runs/my-niah/predictions.jsonl --output-prefix runs/my-niah/heatmap
+  --input results/niah/my-smoke/predictions.jsonl --output-prefix results/niah/my-smoke/heatmap
 ```
 
 Use a vLLM endpoint with its **matching tokenizer** later. Current protocol is plain completions, not automatic chat wrapping. Input generation is synthetic by design, but measured figure scores require actual model replies. Unverified token usage, errors and unsupported cells are separate from incorrect answers. One sample/cell is smoke only; the figure includes counts/Wilson intervals. The repeated generic haystack is a recall fixture, not realistic agentic coding evidence.
@@ -163,7 +166,7 @@ Use a vLLM endpoint with its **matching tokenizer** later. Current protocol is p
 ```bash
 .venv/bin/python scripts/lc_schedule.py \
   --long-only-steps 2 --alternating-steps 4 --effective-tokens 131072 \
-  --cursor runs/my-lc/cursor.json --output runs/my-lc/steps.jsonl --count 6
+  --cursor results/lc/my-smoke/cursor.json --output results/lc/my-smoke/steps.jsonl --count 6
 ```
 
 The cursor describes emitted schedule steps, **not completed GPU optimizer updates**. Do not treat its advancement as a training checkpoint. Effective batch counts must be mapped to the actual MCore DP/CP/TP groups when integrating training.
@@ -179,8 +182,8 @@ CPU scheduler smoke (choose new output paths on every run):
   --texts tests/fixtures/texts.jsonl --context-length 32 \
   --lr-schedule wsd --warmup-steps 2 --stable-steps 4 --decay-steps 2 \
   --schedule-total-steps 8 --min-lr-ratio 0.1 --steps 8 \
-  --checkpoint-every 2 --checkpoint-dir runs/my-wsd-snapshots \
-  --output runs/my-wsd-final
+  --checkpoint-every 2 --checkpoint-dir checkpoints/cpu/my-wsd-snapshots \
+  --output checkpoints/cpu/my-wsd-final
 ```
 
 The eight-step horizon remains fixed when resuming; `--steps` is additional work for this invocation. The CPU snapshots are **HF checkpoints**, not inputs to the Megatron DCP merger. See [WSD boundaries/resume](docs/en/WSD_IMPLEMENTATION.md).

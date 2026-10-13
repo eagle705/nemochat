@@ -177,3 +177,7 @@ iteration is read from the independently reloaded tensor, not a constant.
 It does not establish target-model WSM quality, actual Transformer Engine
 interpretation, distributed multi-rank performance, GPU training, Bridge export,
 or optimizer/RNG-resume correctness. No WSM quality or speedup claim is made.
+
+## Runtime-path migration reference
+
+The historical paths, timestamps and results above remain original evidence. For new runs follow the [repository-root runtime layout](RUNTIME_LAYOUT.md); locate relocated local artifacts through the runtime migration manifest's old → new mappings. Preserve receipt remote paths/revisions/hashes and inventory-relative payload paths; never overwrite existing artifacts.

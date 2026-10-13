@@ -1,5 +1,5 @@
 {
   "project": "nemochat",
   "group": "cpu-tutorial",
-  "directory": "outputs/wandb"
+  "directory": "logs/wandb"
 }

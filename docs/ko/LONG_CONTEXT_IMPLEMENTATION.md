@@ -1,5 +1,7 @@
 # CPU 우선 긴 문맥 유틸리티 구현
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 ## 구현 범위
 
 `src/nemochat/long_context/`는 일반 딕셔너리와 리스트를 사용하는 작은 함수들로 구성됩니다. **학습 스케줄을 계산하는 도구이지 실제 학습기나 NVIDIA NeMo/Megatron Bridge 통합이 아닙니다.** attention/RoPE 수정, GPU 실행, 모델의 64K 지원을 주장하지 않습니다. 합성 입력과 모의 네트워크 테스트는 모델 성능 측정이 아닙니다. 실제 엔드포인트 실행 결과만 측정 데이터로 취급합니다.
@@ -10,7 +12,7 @@
 .venv/bin/python scripts/lc_schedule.py \
   --long-only-steps 2 --alternating-steps 4 \
   --effective-tokens 131072 --micro-batch-size 1 --world-size 1 \
-  --cursor /tmp/lc-cursor.json --output /tmp/lc-steps.jsonl --count 3
+  --cursor results/lc/my-smoke/cursor.json --output results/lc/my-smoke/steps.jsonl --count 3
 # 같은 명령을 다시 실행하면 다음 3개 스텝을 생성합니다.
 ```
 
@@ -32,9 +34,9 @@ NIAH generate/run/score/plot 출력은 CSV·PNG·SVG·metadata까지 **새롭고
 
 ```bash
 .venv/bin/python scripts/niah.py generate \
-  --tokenizer /path/to/tokenizer --local-files-only \
-  --config configs/eval/niah_smoke.json --output /tmp/niah-fixtures.jsonl
-# 선택 사항: --haystack /path/to/corpus.txt
+  --tokenizer checkpoints/pretrained/my-tokenizer --local-files-only \
+  --config configs/eval/niah_smoke.json --output datasets/niah/my-smoke/fixtures.jsonl
+# 선택 사항: --haystack datasets/my-corpus.txt
 # Config 값이 CLI보다 우선한다. 제공 config의 random_depths(현재 0)를
 # 수정하거나 --config 없이 --random-depths 3을 사용한다.
 ```
@@ -60,8 +62,8 @@ NIAH generate/run/score/plot 출력은 CSV·PNG·SVG·metadata까지 **새롭고
 ```bash
 # 인증이 필요하면 비밀 관리 도구로 OPENAI_API_KEY 환경변수를 설정합니다.
 .venv/bin/python scripts/niah.py run \
-  --tokenizer /path/to/tokenizer --local-files-only \
-  --input /tmp/niah-fixtures.jsonl --output /tmp/niah-predictions.jsonl \
+  --tokenizer checkpoints/pretrained/my-tokenizer --local-files-only \
+  --input datasets/niah/my-smoke/fixtures.jsonl --output results/niah/my-smoke/predictions.jsonl \
   --endpoint http://localhost:8000/v1/completions --model actual-served-model \
   --timeout 60 --api-key-env OPENAI_API_KEY
 ```
@@ -79,10 +81,10 @@ HTTP 실패, 잘못된 JSON/choices/text, 서버 오류 객체, 네트워크 실
 ## 엄격한 채점과 정직한 시각화
 
 ```bash
-.venv/bin/python scripts/niah.py score --input /tmp/niah-predictions.jsonl \
-  --output /tmp/niah-scores.jsonl --csv /tmp/niah-scores.csv
-.venv/bin/python scripts/niah.py plot --input /tmp/niah-predictions.jsonl \
-  --output-prefix /tmp/niah-measured
+.venv/bin/python scripts/niah.py score --input results/niah/my-smoke/predictions.jsonl \
+  --output results/niah/my-smoke/scores.jsonl --csv results/niah/my-smoke/scores.csv
+.venv/bin/python scripts/niah.py plot --input results/niah/my-smoke/predictions.jsonl \
+  --output-prefix results/niah/my-smoke/measured
 ```
 
 `exact_match`는 양쪽에 `" ".join(text.split())`만 적용합니다. **공백 정규화만 허용**하며 소문자 변환, 구두점 삭제, 부분 문자열 검색, 설명 제거는 하지 않습니다. 정답 앞에 “The code is”가 붙거나 뒤에 마침표가 붙으면 오답입니다. 생성 길이 제한으로 잘린 유효 응답도 반환된 내용 그대로 채점하며 복구하지 않습니다.

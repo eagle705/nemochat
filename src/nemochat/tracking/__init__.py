@@ -88,7 +88,7 @@ class StageRun:
     """Small init/config/log/finish wrapper; exceptions remain failures."""
     def __init__(self, stage, *, mode="disabled", run_type="stage", run_id=None,
                  entity=None, project="nemochat", group=None, parent_id=None,
-                 checkpoint_id=None, directory="outputs/wandb", resume=False, config=None):
+                 checkpoint_id=None, directory="logs/wandb", resume=False, config=None):
         if stage not in STAGES or run_type not in RUN_TYPES:
             raise ValueError("Unknown stage/run type")
         if mode not in ("disabled", "offline", "online"):

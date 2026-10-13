@@ -1,5 +1,7 @@
 # CPU-first long-context implementation
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 ## Scope and non-claims
 
 `src/nemochat/long_context/` contains small Python functions returning ordinary dictionaries/lists. The schedule CLI **does not train a model**, change attention/RoPE, provision GPUs, or integrate NVIDIA NeMo/Megatron Bridge. Neither generated fixtures nor mocked test responses establish 64K capability or retrieval accuracy. A real endpoint run is required for measurements. Even successful NIAH is not evidence of broad long-context competence.
@@ -10,7 +12,7 @@
 .venv/bin/python scripts/lc_schedule.py \
   --long-only-steps 2 --alternating-steps 4 \
   --effective-tokens 131072 --micro-batch-size 1 --world-size 1 \
-  --cursor /tmp/lc-cursor.json --output /tmp/lc-steps.jsonl --count 3
+  --cursor results/lc/my-smoke/cursor.json --output results/lc/my-smoke/steps.jsonl --count 3
 # Repeat the identical command to emit the next three steps.
 ```
 
@@ -34,9 +36,9 @@ Use the exact HF tokenizer served by the model, preferably a local snapshot or p
 
 ```bash
 .venv/bin/python scripts/niah.py generate \
-  --tokenizer /path/to/tokenizer --local-files-only \
-  --config configs/eval/niah_smoke.json --output /tmp/niah-fixtures.jsonl
-# Optional: --haystack /path/to/corpus.txt
+  --tokenizer checkpoints/pretrained/my-tokenizer --local-files-only \
+  --config configs/eval/niah_smoke.json --output datasets/niah/my-smoke/fixtures.jsonl
+# Optional: --haystack datasets/my-corpus.txt
 # Random depths: config values override CLI flags. Edit random_depths in the
 # supplied config (currently 0), or omit --config and use --random-depths 3.
 ```
@@ -60,8 +62,8 @@ Rows include prompt, expected secret, needle, full token count, SHA-256 of final
 ```bash
 # Export OPENAI_API_KEY using your normal secret manager if the server needs it.
 .venv/bin/python scripts/niah.py run \
-  --tokenizer /path/to/tokenizer --local-files-only \
-  --input /tmp/niah-fixtures.jsonl --output /tmp/niah-predictions.jsonl \
+  --tokenizer checkpoints/pretrained/my-tokenizer --local-files-only \
+  --input datasets/niah/my-smoke/fixtures.jsonl --output results/niah/my-smoke/predictions.jsonl \
   --endpoint http://localhost:8000/v1/completions --model actual-served-model \
   --timeout 60 --api-key-env OPENAI_API_KEY
 ```
@@ -75,10 +77,10 @@ Only string completion responses whose server `usage.prompt_tokens` exactly matc
 ## Honest scoring and plots
 
 ```bash
-.venv/bin/python scripts/niah.py score --input /tmp/niah-predictions.jsonl \
-  --output /tmp/niah-scores.jsonl --csv /tmp/niah-scores.csv
-.venv/bin/python scripts/niah.py plot --input /tmp/niah-predictions.jsonl \
-  --output-prefix /tmp/niah-measured
+.venv/bin/python scripts/niah.py score --input results/niah/my-smoke/predictions.jsonl \
+  --output results/niah/my-smoke/scores.jsonl --csv results/niah/my-smoke/scores.csv
+.venv/bin/python scripts/niah.py plot --input results/niah/my-smoke/predictions.jsonl \
+  --output-prefix results/niah/my-smoke/measured
 # Plotting fixture JSONL instead visibly says SYNTHETIC FIXTURE — NOT MODEL PERFORMANCE.
 ```
 

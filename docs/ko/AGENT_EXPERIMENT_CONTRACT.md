@@ -1,5 +1,7 @@
 # 에이전트 실험 계약 (스키마 1)
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 이 경로는 **오프라인 사용자 정의 PyTorch dense 대조군**입니다. 네이티브
 NemoChat hybrid, Bridge/MCore, MoE/Mamba, 분산 학습, 모델 품질 또는 속도 향상을
 검증하지 않습니다. 모델·토크나이저·데이터 다운로드나 온라인 추적이 필요하지
@@ -14,7 +16,7 @@ torch/CUDA를 가져오거나 하드웨어를 확인하지 않습니다. **출�
 ```bash
 .venv/bin/python scripts/run_experiment.py validate --config configs/experiments/dense_cpu.yaml
 .venv/bin/python scripts/run_experiment.py dry-run --config configs/experiments/dense_cuda.yaml
-.venv/bin/python scripts/run_experiment.py run --config configs/experiments/dense_cpu.yaml --output runs/dense-new
+.venv/bin/python scripts/run_experiment.py run --config configs/experiments/dense_cpu.yaml --output results/training_perf/dense-new
 .venv/bin/python -m pytest -q tests/test_experiments.py
 ```
 

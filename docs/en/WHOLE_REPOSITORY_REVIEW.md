@@ -67,3 +67,7 @@ All three cycle-2 independent re-reviews passed with no remaining blocking secur
 Source/config/docs/fixtures remain commit candidates; raw outputs, credentials, model/data binaries, environments/caches and build products stay excluded. Post-document-freeze wheel read-back and staged scans are mandatory before the local feature commit. The actual commit ID is obtained from Git after execution, not embedded recursively in this snapshot. No push, cloud upload, online W&B, paid GPU run or native GPU/Nsight/RL/vLLM/Gym approval.
 
 Nonblocking follow-ups retained: hosted mutable-revision policy, stricter data-config keys/storage validation on incomplete plans, finite injected-delay metadata checks and additional add_note-override permanent regression. Current normal injected delays are fixed finite constants; reviewed correctness gates passed.
+
+## Runtime-path migration reference
+
+The historical paths, timestamps and results above remain original evidence. For new runs follow the [repository-root runtime layout](RUNTIME_LAYOUT.md); locate relocated local artifacts through the runtime migration manifest's old → new mappings. Preserve receipt remote paths/revisions/hashes and inventory-relative payload paths; never overwrite existing artifacts.

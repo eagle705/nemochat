@@ -30,3 +30,7 @@ A real one-second-budget invocation returned **timeout / exit 4**, with prefligh
 ## Review and final regression
 
 Pending independent verdict and final post-fix execution. Do not treat this draft as approval. AGENTS.md update was blocked by a protected-instruction-file approval timeout; it was not retried or bypassed. README and NemoChatAgent.md provide the new entry-point documentation.
+
+## Runtime-path migration reference
+
+The historical paths, timestamps and results above remain original evidence. For new runs follow the [repository-root runtime layout](RUNTIME_LAYOUT.md); locate relocated local artifacts through the runtime migration manifest's old → new mappings. Preserve receipt remote paths/revisions/hashes and inventory-relative payload paths; never overwrite existing artifacts.

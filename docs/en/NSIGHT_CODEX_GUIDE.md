@@ -1,5 +1,7 @@
 # Nsight Systems analysis with Codex
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 ## Scope
 
 Use CLI statistics and a SQLite export for reproducible, read-only agent analysis; use the GUI to validate timeline context. This guide belongs to P1/P3 of the [pretraining performance lab](PRETRAIN_PERFORMANCE_LAB.md). No trace has been collected or analyzed on the current host, and no repository analyzer is implemented by this guide.
@@ -22,14 +24,14 @@ Keep distinct run/rank output names. First inspect a rank for readability, but c
 
 ## 2. Start with summary reports
 
-In a new output directory containing the copied report, illustrative commands are:
+From the repository root, after placing the report in a fresh `results/performance/my-run/` directory, illustrative commands are:
 
 ```bash
-nsys stats --report cuda_api_sum,cuda_gpu_kern_sum,nvtx_sum --format csv baseline.nsys-rep
-nsys export -t sqlite baseline.nsys-rep
+nsys stats --report cuda_api_sum,cuda_gpu_kern_sum,nvtx_sum --format csv results/performance/my-run/baseline.nsys-rep
+nsys export -t sqlite --output results/performance/my-run/baseline.sqlite results/performance/my-run/baseline.nsys-rep
 ```
 
-Confirm report names and syntax against installed help. The first command writes formatted statistics to the console; save stdout to a new file if needed. The second normally creates `baseline.sqlite`; check the actual generated path. Stats may automatically export SQLite as well: inspect existing artifacts rather than force overwriting them. No command here was executed against a real report on this host.
+Confirm report names and syntax against installed help. The first command writes formatted statistics to the console; save stdout to a new file if needed. The second explicitly names `results/performance/my-run/baseline.sqlite`; check the actual generated path. Stats may automatically export SQLite as well: inspect existing artifacts rather than force overwriting them. No command here was executed against a real report on this host.
 
 Summary reports identify kernel counts, durations, synchronization APIs and NVTX costs, but do not establish launch starvation or the critical path. Kernel/API percentages are relative to their own report totals, not necessarily the training wall time.
 
@@ -85,7 +87,7 @@ Use equivalent capture configuration, workload, steps and scope for before/after
 
 ## Proposed analyzer and validation
 
-`scripts/analyze_nsys.py` is a future candidate, not an existing command. Proposed outputs under ignored `outputs/performance/<unique-run>/` are `summary.json`, `kernel_summary.csv`, `candidate_windows.csv` and `analysis.md` with trace identity, command/version, collector coverage and confidence.
+`scripts/analyze_nsys.py` is a future candidate, not an existing command. Proposed outputs under ignored `results/performance/<unique-run>/` are `summary.json`, `kernel_summary.csv`, `candidate_windows.csv` and `analysis.md` with trace identity, command/version, collector coverage and confidence.
 
 If implemented, unit-test read-only/missing-file behavior, unknown schemas, timestamp units, overlapping intervals, multiple streams, correlation-ID reuse, nested NVTX, incomplete capture and missing events using clearly labeled synthetic SQLite fixtures. Then exercise against a real exported trace and independently check sample candidates in the GUI. Synthetic fixture tests do not validate Nsight export or real bottleneck diagnosis.
 

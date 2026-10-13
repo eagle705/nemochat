@@ -25,7 +25,7 @@ P=tutorials/nemo_lens/.venv/bin/python
 LAB=tutorials/nemo_lens/rollout
 $P tutorials/nemo_lens/verify_jaeger.py   # check the existing service
 for scenario in baseline tool-slow tool-straggler; do
-  out="outputs/lens-rollout/my-${scenario}"
+  out="results/lens-rollout/my-${scenario}"
   $P "$LAB/run.py" --scenario "$scenario" --mode otlp --output "$out"
   $P "$LAB/diagnose.py" --spans "$out/spans.jsonl" --output "$out/diagnosis.json"
   $P "$LAB/verify.py" --result "$out/result.json"
@@ -37,9 +37,9 @@ $P -m pytest --import-mode=importlib -q "$LAB"
 Offline alternative (no collector required):
 
 ```bash
-$P "$LAB/run.py" --mode file --scenario tool-slow --output outputs/lens-rollout/my-offline
-$P "$LAB/diagnose.py" --spans outputs/lens-rollout/my-offline/spans.jsonl \
-  --output outputs/lens-rollout/my-offline/diagnosis.json
+$P "$LAB/run.py" --mode file --scenario tool-slow --output results/lens-rollout/my-offline
+$P "$LAB/diagnose.py" --spans results/lens-rollout/my-offline/spans.jsonl \
+  --output results/lens-rollout/my-offline/diagnosis.json
 ```
 
 Both modes preserve actual OTel JSON spans. OTLP mode additionally sends those same spans through the real Lens exporter pipeline. `result.json` means execution/export succeeded; only `jaeger_receipt.json` proves ingestion, complete counts, resource identity and hierarchy. The verifier compares **every local span ID** with the Jaeger response. Failures retain `failure.json` and raw spans, return nonzero, and create no successful result/receipt. Diagnosis rejects error or incomplete stage coverage. All artifact writers refuse existing paths.
@@ -117,3 +117,7 @@ The independent re-review passed for this scripted CPU/source-tree scope. Run th
 The pinned OTel 1.43.0 JSON formatter emits six rounded fractional digits, not original nanosecond precision. Diagnosis preserves the precision actually stored; Jaeger floors original start/duration to microseconds. Receipt correspondence allows only the validated 1us start / 2us duration-end / 1us computed parent-end quantization; it never rewrites recorded timestamps. Jaeger float64 tags may appear as integral JSON numbers; semantic type checks retain strict bool/int identities.
 
 Parent's final three runs each verified 25 spans and exact hierarchy/timestamps at `outputs/precommit-whole/final-cycle2-{baseline,tool-slow,tool-straggler}/`. Fresh Chromium rendered straggler trace `631328f77ad238252a254beb63c04620`, all seven operation labels and 25 spans with no JS errors; private artifact `outputs/precommit-whole/final-cycle2-ui/trace.png`. The evidence JSON preserves earlier observations separately. This acceptance is not native RL/Gym/vLLM/Nsight/GPU validation.
+
+## Runtime layout / 실행 자료 경로
+
+Use repository-root `datasets/`, `checkpoints/`, `results/`, and `logs/`; see [runtime layout](../../../docs/en/RUNTIME_LAYOUT.md) and [한국어](../../../docs/ko/RUNTIME_LAYOUT.md). Relative CLI output paths use the caller working directory. Historical recorded paths/measurements below remain unchanged; prior host artifacts physically migrated, with relative compatibility links and SHA-256 inventory in root `results/runtime-layout-migration.json`. Tutorial benchmark stdout/stderr now go to root `logs/nemo_lens/<output-name>/` (override `--log-output`); use a fresh name for both results and logs.

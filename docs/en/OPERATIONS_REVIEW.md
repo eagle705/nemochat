@@ -19,3 +19,7 @@ A supplied representative-sample file must be **self-weighting** for the unweigh
 W&B review confirmed real offline SDK files and exact CPU saved-state equality. Config schema and exception-preservation repairs have landed; parent rerun: **358 passed, 1 skipped, 25 subtests passed**. Actual offline SDK tests are included. Dependency check, compileall, wheel build, local doc links/companions and JSON checks passed. CUDA RNG, multi-rank correctness and automatic checkpoint/run-ID continuity are not established. Key-based secret filtering is not value-based DLP: never pass credential-bearing URLs/paths or arbitrary auth material in metadata.
 
 No HF remote authentication/transfer or W&B online run has been exercised. Native bundle inventory checks do not prove model deserialization or optimizer resume. Synthetic transport fixture bytes are deliberately not valid model state.
+
+## Runtime-path migration reference
+
+The historical paths, timestamps and results above remain original evidence. For new runs follow the [repository-root runtime layout](RUNTIME_LAYOUT.md); locate relocated local artifacts through the runtime migration manifest's old → new mappings. Preserve receipt remote paths/revisions/hashes and inventory-relative payload paths; never overwrite existing artifacts.

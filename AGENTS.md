@@ -21,6 +21,10 @@ NemoChat is a noncommercial educational NVIDIA SDK tutorial for a small Nemotron
 - `configs/`: versionable experiment/tool configurations; no credentials.
 - `.env.example`: environment template; actual `.env` files are ignored. Python entry points do not automatically load them.
 
+## Runtime directory convention
+
+Resolve relative CLI/config paths from the repository-root CWD: `datasets/` for downloaded/prepared inputs, `checkpoints/` for downloaded/exported/resumable weights and state, `results/` for reports/traces/plots, and `logs/` for text/W&B logs. See [runtime layout](docs/en/RUNTIME_LAYOUT.md) ([한국어](docs/ko/RUNTIME_LAYOUT.md)). Pass supported CLI paths explicitly; do not invent experiment-schema fields or implicitly relocate HF caches. Tutorials launched from their own folder must use explicit repository-root paths. Keep versioned configs/fixtures in place. Preserve historical evidence and receipt paths; use the migration manifest for old → new local mappings, never overwrite existing artifacts.
+
 ## Working conventions
 
 - Use explicit small functions and readable scripts. Avoid generic trainers, registries, factories and speculative abstraction.

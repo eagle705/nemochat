@@ -1,4 +1,4 @@
-"""Focused real HTTP/inference regressions; raw subprocess artifacts stay in outputs/."""
+"""Focused real HTTP/inference regressions; raw subprocess artifacts stay in results/."""
 import copy
 import json
 import os
@@ -21,7 +21,7 @@ from verify import get_json
 class RolloutTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.root = HERE.parents[2] / "outputs" / "lens-rollout-tests" / uuid.uuid4().hex
+        cls.root = HERE.parents[2] / "results" / "lens-rollout-tests" / uuid.uuid4().hex
         cls.root.mkdir(parents=True)
         cls.success = cls.execute("slow", "--scenario", "tool-slow")
         cls.spans = [json.loads(s) for s in (cls.root / "slow" / "spans.jsonl").read_text().splitlines()]

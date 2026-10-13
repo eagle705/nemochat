@@ -52,3 +52,7 @@ Cycle-2 독립 재리뷰 3건 모두 PASS이며 현재 reviewed source 17개 has
 NIAH partial 공개 결과는 삭제하지 않고 reservation tombstone을 남겨 retry마다 새 경로를 사용한다. Private staging 소유권 계약·각 cleanup 시도·원래 예외 보존을 검증했다. Bridge는 자기 stage/type 진단만 전달한다. Float64의 JSON integer 표현 차이와 SDK/Jaeger 1–2µs 정밀도 차이만 허용하며 bool/int·손상 timestamp는 거부한다.
 
 최종 문서 freeze 후 wheel/read-back·staged 전체 scan을 통과한 경우 승인된 로컬 feature commit을 실행한다. 실제 commit ID는 실행 후 Git에서 확인하며 문서에 자기참조 hash를 넣지 않는다. Push·외부 upload·online W&B·유료 GPU와 native GPU/Nsight/RL/vLLM/Gym 승인은 포함하지 않는다. 비차단 follow-up과 전체 commands/evidence는 영문 canonical을 참고한다.
+
+## 런타임 경로 migration 참고
+
+위 과거 실행 기록의 경로·timestamp·결과는 원래 증거로 보존합니다. 새 실행은 [저장소 루트 런타임 규약](RUNTIME_LAYOUT.md)을 따르고, 이동된 로컬 산출물은 runtime migration manifest의 old → new 매핑으로 찾습니다. Receipt의 remote path/revision/hash와 inventory 상대 경로를 변경하거나 기존 산출물을 덮어쓰지 않습니다.

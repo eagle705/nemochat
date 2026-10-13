@@ -40,8 +40,8 @@ ss -ltn
 # Dedicated project name: nemochat-lens-tutorial. No unrelated containers touched.
 docker compose up -d
 .venv/bin/python verify_jaeger.py      # bounded readiness polling, not a blind sleep
-.venv/bin/python train.py --mode otlp --steps 20 --output runs/my-smoke
-.venv/bin/python verify_jaeger.py --result runs/my-smoke/result.json
+.venv/bin/python train.py --mode otlp --steps 20 --output ../../results/nemo_lens/my-smoke
+.venv/bin/python verify_jaeger.py --result ../../results/nemo_lens/my-smoke/result.json
 ```
 
 Ports were checked free before launch: UI `127.0.0.1:16687`, OTLP gRPC
@@ -92,9 +92,9 @@ The [rollout lab](rollout/README.md) ([Korean](rollout/README.ko.md)) extends th
 ## Measure overhead, not “zero overhead”
 
 ```bash
-.venv/bin/python benchmark.py --output runs/my-benchmark --steps 400 --warmup 40 --repetitions 8
+.venv/bin/python benchmark.py --output ../../results/nemo_lens/my-benchmark --steps 400 --warmup 40 --repetitions 8
 # Without Docker, run baseline / disabled / file only (OTLP explicitly omitted):
-.venv/bin/python benchmark.py --output runs/my-offline --skip-otlp
+.venv/bin/python benchmark.py --output ../../results/nemo_lens/my-offline --skip-otlp
 .venv/bin/python -m pytest -q test_tutorial.py
 uv pip check --python .venv/bin/python
 ```
@@ -127,9 +127,9 @@ was run for this privacy-only change.
 Actual commands (this folder, not the repository-wide suite):
 
 ```bash
-.venv/bin/python train.py --mode otlp --steps 20 --output runs/smoke
-.venv/bin/python verify_jaeger.py --result runs/smoke/result.json
-.venv/bin/python benchmark.py --output runs/benchmark-8x400 --steps 400 --warmup 40 --repetitions 8
+.venv/bin/python train.py --mode otlp --steps 20 --output ../../results/nemo_lens/smoke
+.venv/bin/python verify_jaeger.py --result ../../results/nemo_lens/smoke/result.json
+.venv/bin/python benchmark.py --output ../../results/nemo_lens/benchmark-8x400 --steps 400 --warmup 40 --repetitions 8
 .venv/bin/python -m pytest -q test_tutorial.py
 uv pip check --python .venv/bin/python
 .venv/bin/python -m compileall -q train.py benchmark.py verify_jaeger.py setup_env.py test_tutorial.py
@@ -165,8 +165,8 @@ Fresh local validation (not a timing comparison):
 ```bash
 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider test_tutorial.py test_exporter_privacy.py
 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python verify_jaeger.py
-PYTHONDONTWRITEBYTECODE=1 .venv/bin/python train.py --mode otlp --steps 20 --output runs/privacy-fix-smoke
-PYTHONDONTWRITEBYTECODE=1 .venv/bin/python verify_jaeger.py --result runs/privacy-fix-smoke/result.json
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python train.py --mode otlp --steps 20 --output ../../results/nemo_lens/privacy-fix-smoke
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python verify_jaeger.py --result ../../results/nemo_lens/privacy-fix-smoke/result.json
 ```
 
 **15 tests passed** (9 existing + 6 privacy regressions). The privacy tests mock
@@ -182,3 +182,7 @@ Acceptance: SDK import/install, actual optimizer updates, correctness parity,
 real complete local export, loopback readiness and focused tests **exercised**.
 Rendered GUI, GPU/Nsight, CUDA/source attribution, native NemoChat integration and
 production observability **not established** by this tutorial.
+
+## Runtime layout / 실행 자료 경로
+
+Use repository-root `datasets/`, `checkpoints/`, `results/`, and `logs/`; see [runtime layout](../../docs/en/RUNTIME_LAYOUT.md) and [한국어](../../docs/ko/RUNTIME_LAYOUT.md). Relative CLI output paths use the caller working directory. Historical recorded paths/measurements below remain unchanged; prior host artifacts physically migrated, with relative compatibility links and SHA-256 inventory in root `results/runtime-layout-migration.json`. Tutorial benchmark stdout/stderr now go to root `logs/nemo_lens/<output-name>/` (override `--log-output`); use a fresh name for both results and logs.

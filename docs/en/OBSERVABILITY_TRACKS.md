@@ -1,5 +1,7 @@
 # NeMo Lens tutorial and Nsight Bridge
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 ## Two distinct deliverables
 
 - [NeMo Lens tutorial](../../tutorials/nemo_lens/README.md): learn application telemetry, run an offline training control, export actual spans, open the local trace UI, and measure instrumentation overhead.
@@ -47,11 +49,11 @@ One explicit scope may emit both a Lens span and an NVTX annotation carrying a s
 Backend API success is not proof that the UI renders. `scripts/verify_lens_ui.py` uses a separate Playwright runtime to open the actual Jaeger search page and a stored training trace, verify visible operation names and save screenshots. It does not create a new web viewer. From the repository root:
 
 ```bash
-python3 -m venv outputs/lens-browser/.venv
-outputs/lens-browser/.venv/bin/python -m pip install playwright
-outputs/lens-browser/.venv/bin/python -m playwright install chromium
-outputs/lens-browser/.venv/bin/python scripts/verify_lens_ui.py \
-  --url http://127.0.0.1:16687 --output outputs/lens-ui-check
+python3 -m venv .venv-lens-browser
+.venv-lens-browser/bin/python -m pip install playwright
+.venv-lens-browser/bin/python -m playwright install chromium
+.venv-lens-browser/bin/python scripts/verify_lens_ui.py \
+  --url http://127.0.0.1:16687 --output results/observability/lens-ui-check
 ```
 
 Start the tutorial backend and export a training trace first. Use `--trace-id` from an actual `result.json` to inspect a specific short trace. Output paths must be fresh. Browser installation requires network access and disk space; missing OS libraries or blocked downloads are explicit blockers, not simulated screenshots. The browser verifier is optional and not part of the base package dependencies. It verifies Jaeger, **not the native Nsight GUI**.
@@ -63,7 +65,7 @@ The explicit browser regression suite is opt-in. On this host it was run with th
 ```bash
 PROJECT_SITE=$(.venv/bin/python -c 'import site; print(site.getsitepackages()[0])')
 PYTHONPATH="$PROJECT_SITE" NEMOCHAT_LENS_BROWSER_TESTS=1 \
-  outputs/lens-browser/.venv/bin/python -m pytest -q \
+  .venv-lens-browser/bin/python -m pytest -q \
   tests/test_lens_ui_browser.py tests/test_lens_ui_cli.py
 ```
 

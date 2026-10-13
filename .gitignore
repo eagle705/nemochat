@@ -1,12 +1,14 @@
 # Local tutorial runs, caches, and checkpoints (publish curated summaries separately)
-/runs/
+/datasets/
+/logs/
+/runs
 /artifacts/
 /data/
 /results/
 /checkpoints/
 /exports/
 /figures/
-/outputs/
+/outputs
 wandb/
 *.distcp
 *.safetensors

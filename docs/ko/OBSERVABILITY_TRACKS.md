@@ -1,5 +1,7 @@
 # NeMo Lens Tutorial과 Nsight Bridge
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 Canonical: [영문 범위·검증 계약](../en/OBSERVABILITY_TRACKS.md).
 
 ## 두 폴더의 목적
@@ -36,11 +38,11 @@ Upstream의 예제 compose는 Weave routing이 기본이므로 그대로 복사�
 `scripts/verify_lens_ui.py`는 별도 Playwright 환경에서 실제 Jaeger 검색 페이지와 저장된 학습 trace를 열고 span 이름·JavaScript 오류·스크린샷을 확인한다. 새 viewer가 아니며 Nsight native GUI를 검증하는 도구도 아니다.
 
 ```bash
-python3 -m venv outputs/lens-browser/.venv
-outputs/lens-browser/.venv/bin/python -m pip install playwright
-outputs/lens-browser/.venv/bin/python -m playwright install chromium
-outputs/lens-browser/.venv/bin/python scripts/verify_lens_ui.py \
-  --url http://127.0.0.1:16687 --output outputs/lens-ui-check
+python3 -m venv .venv-lens-browser
+.venv-lens-browser/bin/python -m pip install playwright
+.venv-lens-browser/bin/python -m playwright install chromium
+.venv-lens-browser/bin/python scripts/verify_lens_ui.py \
+  --url http://127.0.0.1:16687 --output results/observability/lens-ui-check
 ```
 
 먼저 tutorial backend를 시작하고 실제 training trace를 전송한다. 짧은 trace를 보려면 실제 `result.json`의 `trace_id`를 `--trace-id`로 전달한다. 출력 폴더는 새 경로여야 한다. Browser 다운로드·OS 라이브러리 문제는 blocker로 표시하며 가짜 화면으로 대체하지 않는다. 이 dependency는 main environment와 분리한다.
@@ -52,7 +54,7 @@ Browser 회귀 테스트는 opt-in이다. Main dependency를 바꾸지 않고 pr
 ```bash
 PROJECT_SITE=$(.venv/bin/python -c 'import site; print(site.getsitepackages()[0])')
 PYTHONPATH="$PROJECT_SITE" NEMOCHAT_LENS_BROWSER_TESTS=1 \
-  outputs/lens-browser/.venv/bin/python -m pytest -q \
+  .venv-lens-browser/bin/python -m pytest -q \
   tests/test_lens_ui_browser.py tests/test_lens_ui_cli.py
 ```
 

@@ -1,16 +1,18 @@
 # Inference performance tools: local contracts
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 Track: [design and GPU gates](INFERENCE_PERFORMANCE_TRACK.md). These stdlib tools analyze saved producer-attested inputs on CPU. They do not start an engine, send traffic, measure a GPU or evaluate model quality.
 
 ## Saved-request analysis
 
 ```bash
 python3 scripts/analyze_inference_requests.py --help
-mkdir -p outputs/inference_perf/local-smoke
+mkdir -p results/inference_perf/local-smoke
 python3 scripts/analyze_inference_requests.py \
   --requests configs/inference_perf/synthetic_requests.jsonl \
   --config configs/inference_perf/synthetic_config.json \
-  --output outputs/inference_perf/local-smoke/requests.json \
+  --output results/inference_perf/local-smoke/requests.json \
   --allow-synthetic
 ```
 
@@ -57,7 +59,7 @@ Saved-record analysis is not a complete benchmark run record. Keep engine/model/
 python3 scripts/plan_inference_roofline.py --help
 python3 scripts/plan_inference_roofline.py \
   --config configs/planning/inference_roofline_synthetic.json \
-  --output outputs/inference_perf/local-smoke/roofline.json \
+  --output results/inference_perf/local-smoke/roofline.json \
   --allow-synthetic
 ```
 

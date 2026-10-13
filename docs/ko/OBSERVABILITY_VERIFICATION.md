@@ -46,3 +46,7 @@ Canonical: [전체 명령·수치·범위](../en/OBSERVABILITY_VERIFICATION.md).
 - 두 폴더 독립 재리뷰 **PASS**: blocking security/logic 없음, reviewer도 Tutorial 15 / Bridge 40 테스트 통과. 부모가 검토된 SHA256과 현재 파일 일치를 확인했다. Verdict는 `outputs/observability-reviewed-verdict.json`. 별도 browser 수정도 부모가 실행했다: **Chromium/CLI 38 passed**. Redirect·외부 resource·WebSocket·잘못된 ID·누락 operation·JS 오류를 실패 처리한다. WebSocket callback deadlock을 tight test로 재현하고 handshake 전 동기 close를 제거했으며 목적지 미접촉을 확인했다. 실제 최종 화면 `outputs/lens-ui-parent-hardened-02/`는 full trace ID·service·다섯 exact operation을 확인한 17 span trace다. Main 최종 **783 passed, 22 skipped, 25 subtests**: 20 browser opt-in skip은 별도 실제 실행 통과, 기존 skip 2개. Browser 독립 재리뷰 **PASS**: reviewer Chromium/CLI 38 passed, security/logic blocker 없음. 부모가 세 파일 hash 일치를 확인했다. Proxy 환경·service worker·same-origin WebSocket·popup 추가 테스트는 nonblocking 권고다. GPU/Nsight 미검증과 구분한다.
 
 Jaeger UI는 `127.0.0.1:16687`에만 열려 있고 원격 접속은 tutorial의 SSH tunnel 절차를 따른다. 메모리 저장이므로 container 재시작 시 trace가 사라진다. Commit·push·공개·외부 telemetry·유료 GPU 실행은 하지 않았다.
+
+## 런타임 경로 migration 참고
+
+위 과거 실행 기록의 경로·timestamp·결과는 원래 증거로 보존합니다. 새 실행은 [저장소 루트 런타임 규약](RUNTIME_LAYOUT.md)을 따르고, 이동된 로컬 산출물은 runtime migration manifest의 old → new 매핑으로 찾습니다. Receipt의 remote path/revision/hash와 inventory 상대 경로를 변경하거나 기존 산출물을 덮어쓰지 않습니다.

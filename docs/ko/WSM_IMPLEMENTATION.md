@@ -64,3 +64,7 @@ Review blocker 수정 후 분리된 환경에서 **25 passed**, project 환경�
 작은 신뢰된 synthetic DCP 입력으로 실제 공식 merge, 독립 값 재검사, extra-state 복사, dry-run, overwrite 거부, 입력 부족/target 누락, target 보존과 layout mismatch 거부를 검사했다. `/home/ubuntu/runs/wsm-fixture-5/verification.json`은 이전 10-test 실행의 호스트 전용 기록이다. `/home/ubuntu/runs/wsm-review-opt-qSfc76JH/fixture/verification.json`은 이번 optimized 검증 기록이다. 둘 다 repository 파일이나 다른 머신의 재현 전제 조건이 아니다.
 
 이것은 **CPU merge wiring 검증**이다. 실제 NemoChat의 GPU 학습 checkpoint, hybrid model reload/export, NeMo Gym benchmark 실행 및 raw 대비 성능 개선은 별도 검증이 필요하다. Upstream Nemotron 결과를 이 프로젝트의 결과로 인용하지 않는다.
+
+## 런타임 경로 migration 참고
+
+위 과거 실행 기록의 경로·timestamp·결과는 원래 증거로 보존합니다. 새 실행은 [저장소 루트 런타임 규약](RUNTIME_LAYOUT.md)을 따르고, 이동된 로컬 산출물은 runtime migration manifest의 old → new 매핑으로 찾습니다. Receipt의 remote path/revision/hash와 inventory 상대 경로를 변경하거나 기존 산출물을 덮어쓰지 않습니다.

@@ -1,13 +1,16 @@
 # 대규모 코퍼스 표본 추정과 학습 시간·예산 계산
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 ## 실행
 
 저장소 루트에서 CPU/test 환경의 Python을 사용합니다.
 
 ```bash
-python scripts/estimate_corpus.py --config configs/planning/corpus_local_smoke.json --output /tmp/corpus-local.json
-python scripts/plan_training.py --config configs/planning/training_measured_example.json --output /tmp/training-plan.json
-python scripts/plan_training.py --config configs/planning/training_unmeasured.json --output /tmp/unknown-plan.json
+mkdir -p results/planning
+python scripts/estimate_corpus.py --config configs/planning/corpus_local_smoke.json --output results/planning/corpus-local.json
+python scripts/plan_training.py --config configs/planning/training_measured_example.json --output results/planning/training-plan.json
+python scripts/plan_training.py --config configs/planning/training_unmeasured.json --output results/planning/unknown-plan.json
 python -m pytest -q tests/test_planning.py
 ```
 

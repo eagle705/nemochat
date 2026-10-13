@@ -1,5 +1,7 @@
 # CPU에서 실행해 볼 수 있는 첫 구현
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 [영문 walkthrough](../en/CPU_IMPLEMENTATION.md), [실행 명령 README](../../README.md), [실제 검증 결과](../IMPLEMENTATION_VERIFICATION.md).
 
 ## 구현 스타일
@@ -31,7 +33,7 @@ CPU unit tests 외에 tiny model inference, real ClimbMix 선택 shard, 실제 N
 ## 실행 시 유의사항
 
 - `.venv` CPU 환경과 미래 GPU container는 별도다.
-- README의 `runs/my-*` 경로를 사용한다. 기존 outputs를 덮어쓰지 않는다.
+- README의 `datasets/`, `checkpoints/`, `results/`, `logs/` 경로를 사용한다. 기존 outputs를 덮어쓰지 않는다.
 - ClimbMix smoke는 최대 100MB의 **선택 shard 1개**를 내려받고 256-token pack만 남긴다. 임시 shard/cache는 삭제한다. 최종 subset보다 network 읽기량이 큰 것은 숨기지 않는다.
 - CORE COPA 3개 smoke score는 full CORE가 아니다. Baseline centering과 output schema 검증용이다.
 - NIAH prompt+generation 전체 budget을 사용하며 unsupported/error는 오답 0과 별도로 표시한다. 1 sample/cell은 pipeline smoke일 뿐 신뢰할 수 있는 capability 평가가 아니다.

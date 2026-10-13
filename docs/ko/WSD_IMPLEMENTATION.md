@@ -99,3 +99,7 @@ PASS: exact model, optimizer/RNG, and run cursor/token-count equality (CPU contr
 ```
 
 Transformers의 기존 `loss_type=None` 경고와 기본 `ForCausalLMLoss` fallback은 나타났지만 실행과 비교는 성공했습니다. 단위 테스트의 random tiny-HF fixture와 위 pretrained CPU 실행은 별개의 근거입니다. **NemoChat/Bridge/MCore/B300 학습, 대규모 사전학습 수렴, WSM 평가 및 품질 향상은 이 스케줄러로 검증하지 않았으며 주장하지 않습니다.** 작은 수작업 corpus의 CE를 품질 benchmark로 해석하면 안 됩니다.
+
+## 런타임 경로 migration 참고
+
+위 과거 실행 기록의 경로·timestamp·결과는 원래 증거로 보존합니다. 새 실행은 [저장소 루트 런타임 규약](RUNTIME_LAYOUT.md)을 따르고, 이동된 로컬 산출물은 runtime migration manifest의 old → new 매핑으로 찾습니다. Receipt의 remote path/revision/hash와 inventory 상대 경로를 변경하거나 기존 산출물을 덮어쓰지 않습니다.

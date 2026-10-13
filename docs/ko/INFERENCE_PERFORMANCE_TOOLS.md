@@ -1,16 +1,18 @@
 # Inference Performance CPU 도구
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 Canonical: [INFERENCE_PERFORMANCE_TOOLS.md](../en/INFERENCE_PERFORMANCE_TOOLS.md). [독립 트랙](INFERENCE_PERFORMANCE_TRACK.md)의 준비 단계다. Engine 실행, load generation, GPU 측정, quality 평가를 수행하는 도구가 아니다.
 
 ## Saved-request 분석 실행
 
 ```bash
 python3 scripts/analyze_inference_requests.py --help
-mkdir -p outputs/inference_perf/local-smoke
+mkdir -p results/inference_perf/local-smoke
 python3 scripts/analyze_inference_requests.py \
   --requests configs/inference_perf/synthetic_requests.jsonl \
   --config configs/inference_perf/synthetic_config.json \
-  --output outputs/inference_perf/local-smoke/requests.json \
+  --output results/inference_perf/local-smoke/requests.json \
   --allow-synthetic
 ```
 
@@ -56,7 +58,7 @@ Arrival은 `[start,end)` 안에, 모든 completion은 end 이하여야 한다. *
 python3 scripts/plan_inference_roofline.py --help
 python3 scripts/plan_inference_roofline.py \
   --config configs/planning/inference_roofline_synthetic.json \
-  --output outputs/inference_perf/local-smoke/roofline.json \
+  --output results/inference_perf/local-smoke/roofline.json \
   --allow-synthetic
 ```
 

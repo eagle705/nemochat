@@ -122,3 +122,7 @@ Each checkpoint contains `model.safetensors`, HF model/tokenizer configuration, 
 | Model quality improvement | Not claimed |
 
 Transformers emitted its existing `loss_type=None` fallback warning and used `ForCausalLMLoss`; execution and comparisons succeeded. Tiny-model CE on the handwritten smoke corpus is not a quality benchmark. Full pretraining, distributed state synchronization and evaluation attribution still require target-stack verification.
+
+## Runtime-path migration reference
+
+The historical paths, timestamps and results above remain original evidence. For new runs follow the [repository-root runtime layout](RUNTIME_LAYOUT.md); locate relocated local artifacts through the runtime migration manifest's old → new mappings. Preserve receipt remote paths/revisions/hashes and inventory-relative payload paths; never overwrite existing artifacts.

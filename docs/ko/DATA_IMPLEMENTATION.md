@@ -1,5 +1,7 @@
 # CPU 우선 ClimbMix 데이터 구현
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 ## 구현 범위와 권리
 
 `src/nemochat/data/climbmix.py`와 `scripts/prepare_data.py`는 명시적으로 선택한
@@ -27,7 +29,7 @@ ClimbMix config의 `source`는 코드의 `SOURCE`와 정확히 일치해야 하�
 python3 tests/test_data.py  # 외부 패키지 없이 fixture/control test
 .venv/bin/python scripts/prepare_data.py \
   --config configs/data/climbmix_smoke.json \
-  --output /tmp/nemochat-climbmix-smoke-fresh
+  --output datasets/climbmix/my-smoke-fresh
 ```
 
 제공된 config는 `shard_00000.parquet` 하나, `max_shards: 1`, quota 256,

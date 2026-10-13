@@ -1,5 +1,7 @@
 # Agent-assisted training systems reference lab
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 ## Purpose and current boundary
 
 NemoChat teaches training engineering, not agent application development. A coding agent operates a bounded, explicit experiment contract; a human learns how workload shape, memory, launches and optimizer updates interact. Start with the standalone dense Transformer control before moving to the existing native hybrid plan. Generated tokens are replay inputs, not a meaningful corpus or model-quality benchmark.
@@ -28,7 +30,8 @@ These are small mechanics controls. Larger workload configurations need their ow
 ## Linear forward/backward operator planner
 
 ```bash
-.venv/bin/python scripts/plan_training_operator.py --config configs/performance/linear_unmeasured.json --output runs/my-linear-estimate.json
+mkdir -p results/planning
+.venv/bin/python scripts/plan_training_operator.py --config configs/performance/linear_unmeasured.json --output results/planning/my-linear-estimate.json
 ```
 
 The parent directory must exist; output is created exclusively. This small tool does not run a GPU or infer its specifications.

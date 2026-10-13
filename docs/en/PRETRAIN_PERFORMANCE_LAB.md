@@ -1,5 +1,7 @@
 # Pretraining performance lab: Nsight Systems → Triton fusion
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 ## Status and purpose
 
 This is an accepted pretraining work package, not an implemented GPU capability or a measured speedup. The current host cannot communicate with an NVIDIA driver (`nvidia-smi -L` failed); `nsys` is not on PATH. CPU tests cannot validate CUDA timing, Triton execution, native distributed training or GPU memory.
@@ -64,7 +66,7 @@ These paths are proposed implementation work, not existing runnable tools:
 - `scripts/benchmark_pretrain_fusion.py`: isolated comparisons and JSON output.
 - `tests/test_pretrain_fusion.py`: CPU reference/contract tests and explicitly CUDA-gated correctness tests.
 - `configs/performance/`: versioned shape/measurement protocol without credentials.
-- Ignored `outputs/performance/<unique-run>/`: resolved config, raw timing/memory, correctness errors, traces and comparison report. Never overwrite earlier runs.
+- Ignored `results/performance/<unique-run>/`: resolved config, raw timing/memory, correctness errors, traces and comparison report. Never overwrite earlier runs.
 
 Track W&B stage `pretrain` with separate implementation/benchmark-role labels; record parent checkpoint, source revision and immutable artifact handles. Do not mix replay/microbenchmark metrics with real training throughput or feed profiler-slowed numbers into the budget planner.
 

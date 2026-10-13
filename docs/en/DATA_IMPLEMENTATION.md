@@ -1,5 +1,7 @@
 # CPU-first ClimbMix data implementation
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 ## Scope and rights
 
 `src/nemochat/data/climbmix.py` and `scripts/prepare_data.py` implement bounded,
@@ -33,7 +35,7 @@ From the repository root, with dependencies installed:
 python3 tests/test_data.py
 .venv/bin/python scripts/prepare_data.py \
   --config configs/data/climbmix_smoke.json \
-  --output /tmp/nemochat-climbmix-smoke-fresh
+  --output datasets/climbmix/my-smoke-fresh
 ```
 
 The supplied remote config explicitly chooses only `shard_00000.parquet`, a

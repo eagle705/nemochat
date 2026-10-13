@@ -1,5 +1,9 @@
 # 사전학습 체크포인트의 공식 NeMo Gym 평가
 
+Gym checkout 자체에서 실행할 때는 `NEMOCHAT_ROOT=/absolute/path/to/nemochat`처럼 NemoChat 루트를 명시합니다. 모델은 `"$NEMOCHAT_ROOT/checkpoints/exports/step_100/raw"`, 출력은 `"$NEMOCHAT_ROOT/results/gym/step_100/raw/ruler.jsonl"`을 사용하고 실제 materialized 입력은 `datasets/gym/<run>/`에 provenance와 함께 보존합니다. Gym-relative benchmark 입력과 upstream preparation 계약은 바꾸지 않습니다. 정확한 command template은 [영문 문서](../en/GYM_PRETRAIN_EVALUATION.md)에 있습니다.
+
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 ## 구현 범위와 실제 결과
 
 `scripts/gym_eval.py`는 **공식 Gym 결과를 가져와 raw/WSM merged 체크포인트를 비교하는 도구**입니다. 새 scorer를 구현하거나 Gym 결과를 임의로 대체하지 않습니다. 모델·judge API 호출, 데이터 다운로드, upstream 준비 스크립트 실행도 하지 않습니다. 기존 `scripts/base_eval.py`의 CE/BPB 및 CORE 진단은 그대로 유지합니다. 생성 벤치마크와 다음 토큰 손실은 서로 다른 관측이므로 함께 보아야 합니다.
@@ -55,9 +59,9 @@ NemoChat training checkpoint를 해당 vLLM 버전이 실제 지원하는 model/
 
 ```bash
 PYTHONPATH=src .venv/bin/python scripts/gym_eval.py \
-  --manifest /absolute/results/manifest.json \
+  --manifest results/gym/my-run/manifest.json \
   --gym-root /absolute/pinned/Gym \
-  --output /absolute/results/gym_comparison.json
+  --output results/gym/my-run/gym_comparison.json
 ```
 
 Importer는 source pin, checkout의 tracked 변경 여부, benchmark YAML, 각 step의 task coverage와 raw/merged pair, weight identity, input/tokenizer/protocol hash, rollout identity의 완전한 grid를 확인합니다. 누락·중복·masked·error·비유한 reward를 거부합니다. 실패한 실행을 0점으로 만들지 않고 살아남은 sample 교집합만 몰래 비교하지도 않습니다. 출력에는 원본 공식 점수, task별 `merged_minus_raw`, artifact 경로와 SHA-256이 들어갑니다. 공식 점수를 재계산하거나 서로 다른 scale의 task를 임의의 composite로 합치지 않습니다. 기존 출력 덮어쓰기도 거부합니다.

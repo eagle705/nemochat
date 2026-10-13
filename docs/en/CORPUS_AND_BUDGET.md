@@ -1,13 +1,16 @@
 # Corpus size and training budget: measured, bounded, scope-labeled
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 ## Run locally
 
 From the repository root, using the CPU/test environment from the main setup:
 
 ```bash
-python scripts/estimate_corpus.py --config configs/planning/corpus_local_smoke.json --output /tmp/corpus-local.json
-python scripts/plan_training.py --config configs/planning/training_measured_example.json --output /tmp/training-plan.json
-python scripts/plan_training.py --config configs/planning/training_unmeasured.json --output /tmp/unknown-plan.json
+mkdir -p results/planning
+python scripts/estimate_corpus.py --config configs/planning/corpus_local_smoke.json --output results/planning/corpus-local.json
+python scripts/plan_training.py --config configs/planning/training_measured_example.json --output results/planning/training-plan.json
+python scripts/plan_training.py --config configs/planning/training_unmeasured.json --output results/planning/unknown-plan.json
 python -m pytest -q tests/test_planning.py
 ```
 

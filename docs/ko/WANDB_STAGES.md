@@ -1,5 +1,7 @@
 # W&B 단계 추적: 구현 범위와 안전한 사용
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 ## 구현된 범위
 
 W&B는 선택적 관측 도구이며 학습 백엔드가 아니다. 가상환경에서
@@ -45,12 +47,13 @@ import하거나 추적 receipt를 쓰지 않는다. 순위 판정은 `RANK`(기�
 이미 준비된 로컬 모델 예시(경로를 실제 경로로 교체):
 
 ```bash
+mkdir -p logs/wandb
 PYTHONPATH=src HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
-python scripts/train_cpu.py --model /absolute/local/model \
-  --texts /absolute/texts.jsonl --output /absolute/new-checkpoint \
+python scripts/train_cpu.py --model checkpoints/pretrained/my-model \
+  --texts datasets/my-texts.jsonl --output checkpoints/cpu/my-offline-run \
   --steps 2 --context-length 32 \
   --wandb-mode offline --wandb-config configs/tracking/default.json \
-  --wandb-id cpu-example --wandb-dir /absolute/local-tracking
+  --wandb-id cpu-example --wandb-dir logs/wandb
 ```
 
 W&B 오프라인 모드는 모델/데이터 다운로드를 차단하지 않는다. 다운로드 금지 시

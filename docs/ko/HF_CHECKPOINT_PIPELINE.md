@@ -1,5 +1,7 @@
 # B300 주간 임대를 위한 Hugging Face 체크포인트 파이프라인
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 ## 범위와 두 종류의 산출물
 
 이 구현은 **쓰기 완료 후 고정한 체크포인트**의 포장·전송·바이트 검증을
@@ -37,15 +39,15 @@
 
 ```bash
 python scripts/hf_checkpoint.py pack \
-  --source /checkpoints/frozen-step-1000 --output /staging/pretrain-week01-step1000 \
+  --source checkpoints/pretrain/week01/frozen-step-1000 --output checkpoints/packages/pretrain-week01-step1000 \
   --kind torch_dist_training --stage pretrain --run week01 --checkpoint step_1000 \
-  --components /checkpoints/training_components.json
+  --components checkpoints/pretrain/week01/training_components.json
 python scripts/hf_checkpoint.py verify \
-  --source /staging/pretrain-week01-step1000 --kind torch_dist_training
-python scripts/hf_checkpoint.py upload --source /staging/pretrain-week01-step1000 \
+  --source checkpoints/packages/pretrain-week01-step1000 --kind torch_dist_training
+python scripts/hf_checkpoint.py upload --source checkpoints/packages/pretrain-week01-step1000 \
   --repo-id OWNER/nemochat-checkpoints --dry-run
 python scripts/hf_checkpoint.py restore-local \
-  --source /staging/pretrain-week01-step1000 --output /restore/local-check \
+  --source checkpoints/packages/pretrain-week01-step1000 --output checkpoints/restored/local-check \
   --kind torch_dist_training --trusted-inputs
 ```
 
@@ -67,7 +69,7 @@ SDK debug log, 전체 `os.environ` dump, manifest 내 자격 증명은 금지하
 CLI는 SDK 예외에 credential이 포함될 수 있어 상세 예외를 출력하지 않습니다.
 
 ```bash
-python scripts/hf_checkpoint.py upload --source /staging/pretrain-week01-step1000 \
+python scripts/hf_checkpoint.py upload --source checkpoints/packages/pretrain-week01-step1000 \
   --repo-id OWNER/nemochat-checkpoints
 ```
 
@@ -92,7 +94,7 @@ commit을 조사하거나 새 체크포인트 이름을 사용하세요.
 python scripts/hf_checkpoint.py download --repo-id OWNER/nemochat-checkpoints \
   --revision FULL_40_CHARACTER_COMMIT_SHA \
   --path stages/pretrain/runs/week01/checkpoints/step_1000/torch_dist_training \
-  --output /checkpoints/restored-week01-step1000 --kind torch_dist_training \
+  --output checkpoints/restored/week01-step1000 --kind torch_dist_training \
   --manifest-sha256 MANIFEST_SHA256_FROM_RECEIPT --trusted-inputs
 ```
 

@@ -1,5 +1,7 @@
 # W&B stage tracking: implemented scope and safe operation
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 ## What exists (and what does not)
 
 W&B is an optional observer, not a training backend. Install the `tracking` extra
@@ -48,12 +50,13 @@ validation or model recovery.
 Example with an already available local model (replace paths):
 
 ```bash
+mkdir -p logs/wandb
 PYTHONPATH=src HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
-python scripts/train_cpu.py --model /absolute/local/model \
-  --texts /absolute/texts.jsonl --output /absolute/new-checkpoint \
+python scripts/train_cpu.py --model checkpoints/pretrained/my-model \
+  --texts datasets/my-texts.jsonl --output checkpoints/cpu/my-offline-run \
   --steps 2 --context-length 32 \
   --wandb-mode offline --wandb-config configs/tracking/default.json \
-  --wandb-id cpu-example --wandb-dir /absolute/local-tracking
+  --wandb-id cpu-example --wandb-dir logs/wandb
 ```
 
 W&B offline mode does not make model/data acquisition offline. Use local inputs

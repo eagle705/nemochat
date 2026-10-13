@@ -1,5 +1,7 @@
 # Codex로 Nsight Systems 분석하기
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 영문 canonical: [NSIGHT_CODEX_GUIDE.md](../en/NSIGHT_CODEX_GUIDE.md). [Pretraining 성능 실습](PRETRAIN_PERFORMANCE_LAB.md)의 P1/P3에 해당한다.
 
 ## 권장 방식
@@ -24,11 +26,11 @@ Profile window와 launcher 옵션은 설치된 help에 맞춘다. 이 문서는 
 
 ## 2. Summary와 SQLite export
 
-새 output directory에 report를 복사한 뒤 사용하는 예시다. 현재 호스트에서 실제 report로 실행한 명령은 아니다.
+새 `results/performance/my-run/`에 report를 복사한 뒤 저장소 루트에서 사용하는 예시다. 현재 호스트에서 실제 report로 실행한 명령은 아니다.
 
 ```bash
-nsys stats --report cuda_api_sum,cuda_gpu_kern_sum,nvtx_sum --format csv baseline.nsys-rep
-nsys export -t sqlite baseline.nsys-rep
+nsys stats --report cuda_api_sum,cuda_gpu_kern_sum,nvtx_sum --format csv results/performance/my-run/baseline.nsys-rep
+nsys export -t sqlite --output results/performance/my-run/baseline.sqlite results/performance/my-run/baseline.nsys-rep
 ```
 
 Report 이름과 flags를 실제 help에서 확인한다. 첫 명령은 통계를 console에 출력하므로 필요하면 새 파일에 저장한다. 두 번째는 일반적으로 `baseline.sqlite`를 생성하나 실제 경로를 확인한다. Stats가 SQLite를 자동 생성할 수도 있으므로 기존 파일을 무조건 덮어쓰지 않는다.
@@ -81,7 +83,7 @@ Baseline/fused capture 조건과 workload를 맞추고 별도 실행의 절대 t
 
 ## 향후 분석 도구
 
-`scripts/analyze_nsys.py`는 예정 후보이며 현재 실행 가능한 도구가 아니다. `outputs/performance/<unique-run>/`에 summary JSON, kernel/candidate CSV, analysis Markdown과 trace/version/수집 범위를 보관하는 구성을 권장한다.
+`scripts/analyze_nsys.py`는 예정 후보이며 현재 실행 가능한 도구가 아니다. `results/performance/<unique-run>/`에 summary JSON, kernel/candidate CSV, analysis Markdown과 trace/version/수집 범위를 보관하는 구성을 권장한다.
 
 구현 시 synthetic SQLite로 read-only/없는 파일/unknown schema/단위/overlap/multi-stream/ID reuse/nested NVTX/불완전 capture/이벤트 누락을 테스트한다. 이후 실제 export와 GUI 후보 확인을 별도로 검증한다. Synthetic 테스트를 실제 Nsight 분석 검증으로 보고하지 않는다.
 

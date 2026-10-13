@@ -1,5 +1,7 @@
 # Hugging Face checkpoint pipeline for weekly B300 rentals
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 ## Contract and evidence
 
 The implementation transports **frozen** checkpoints; it does not create a
@@ -43,15 +45,15 @@ checks presence and bytes, **not** the optimizer tensor contents or exact resume
 
 ```bash
 python scripts/hf_checkpoint.py pack \
-  --source /checkpoints/frozen-step-1000 --output /staging/pretrain-week01-step1000 \
+  --source checkpoints/pretrain/week01/frozen-step-1000 --output checkpoints/packages/pretrain-week01-step1000 \
   --kind torch_dist_training --stage pretrain --run week01 --checkpoint step_1000 \
-  --components /checkpoints/training_components.json
+  --components checkpoints/pretrain/week01/training_components.json
 python scripts/hf_checkpoint.py verify \
-  --source /staging/pretrain-week01-step1000 --kind torch_dist_training
-python scripts/hf_checkpoint.py upload --source /staging/pretrain-week01-step1000 \
+  --source checkpoints/packages/pretrain-week01-step1000 --kind torch_dist_training
+python scripts/hf_checkpoint.py upload --source checkpoints/packages/pretrain-week01-step1000 \
   --repo-id OWNER/nemochat-checkpoints --dry-run
 python scripts/hf_checkpoint.py restore-local \
-  --source /staging/pretrain-week01-step1000 --output /restore/local-check \
+  --source checkpoints/packages/pretrain-week01-step1000 --output checkpoints/restored/local-check \
   --kind torch_dist_training --trusted-inputs
 ```
 
@@ -73,7 +75,7 @@ manifest, command-line token option, shell history or log. Only the following
 commands perform remote operations:
 
 ```bash
-python scripts/hf_checkpoint.py upload --source /staging/pretrain-week01-step1000 \
+python scripts/hf_checkpoint.py upload --source checkpoints/packages/pretrain-week01-step1000 \
   --repo-id OWNER/nemochat-checkpoints
 ```
 
@@ -101,7 +103,7 @@ On the next rental, use the exact receipt values:
 python scripts/hf_checkpoint.py download --repo-id OWNER/nemochat-checkpoints \
   --revision FULL_40_CHARACTER_COMMIT_SHA \
   --path stages/pretrain/runs/week01/checkpoints/step_1000/torch_dist_training \
-  --output /checkpoints/restored-week01-step1000 --kind torch_dist_training \
+  --output checkpoints/restored/week01-step1000 --kind torch_dist_training \
   --manifest-sha256 MANIFEST_SHA256_FROM_RECEIPT --trusted-inputs
 ```
 

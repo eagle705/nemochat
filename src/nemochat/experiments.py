@@ -12,6 +12,7 @@ import signal
 import subprocess
 import sys
 import time
+import uuid
 from types import MappingProxyType
 from typing import Mapping
 
@@ -226,6 +227,9 @@ def run_experiment(resolved, output, repository):
     """Exclusively reserve a fresh output and persist honest execution evidence."""
     output = Path(output).absolute()
     output.mkdir(parents=True, exist_ok=False)
+    # Logs are separate from result bundles; unique names avoid basename collisions.
+    logs = Path(repository).resolve() / "logs" / "experiments" / uuid.uuid4().hex
+    logs.mkdir(parents=True, exist_ok=False)
     config = resolved.to_dict()
     _write_json(output / "resolved_config.json", config)
     (output / "resolved_config.json").chmod(0o444)
@@ -244,7 +248,7 @@ def run_experiment(resolved, output, repository):
             if remaining <= 0:
                 status, reason = "timeout", "resource deadline exhausted during preflight"
             else:
-                with (output / "stdout.log").open("x") as stdout, (output / "stderr.log").open("x") as stderr:
+                with (logs / "stdout.log").open("x") as stdout, (logs / "stderr.log").open("x") as stderr:
                     returncode, timed_out = execute_process(argv, cwd=repository, env=env, timeout=remaining, stdout=stdout, stderr=stderr)
                 status = "timeout" if timed_out or returncode == 4 else "success" if returncode == 0 else "blocked" if returncode == 3 else "failed"
                 if status != "success":
@@ -252,7 +256,7 @@ def run_experiment(resolved, output, repository):
                     # Typed worker failures are emitted on stdout, not necessarily stderr.
                     if not timed_out:
                         try:
-                            summary = load_strict_json(output / "stdout.log", max_bytes=MAX_CONFIG_BYTES)
+                            summary = load_strict_json(logs / "stdout.log", max_bytes=MAX_CONFIG_BYTES)
                         except (ValueError, OSError):
                             summary = None
                         if isinstance(summary, dict):
@@ -261,14 +265,14 @@ def run_experiment(resolved, output, repository):
                                 reason = "benchmark out-of-memory"
                             elif returncode == 4 and kind == "time-budget-exceeded":
                                 reason = "benchmark time-budget-exceeded (cooperative deadline)"
-                    with (output / "stderr.log").open("rb") as stream:
-                        stream.seek(max(0, (output / "stderr.log").stat().st_size - 65536))
+                    with (logs / "stderr.log").open("rb") as stream:
+                        stream.seek(max(0, (logs / "stderr.log").stat().st_size - 65536))
                         error = stream.read().decode("utf-8", errors="replace").lower()
                     if status != "timeout" and ("out of memory" in error or "outofmemoryerror" in error):
                         status, reason = "blocked", "OOM detected in benchmark stderr"
     except Exception as exc:
         status, reason = "failed", f"{type(exc).__name__}: {exc}"
-    result = {"schema_version": 1, "status": status, "exit_code": EXIT_CODES[status], "benchmark_returncode": returncode, "reason": reason, "source_sha256": resolved.source_sha256, "config": config, "argv": argv, "elapsed_seconds": time.monotonic() - started, "evidence_label": EVIDENCE}
+    result = {"schema_version": 1, "status": status, "exit_code": EXIT_CODES[status], "benchmark_returncode": returncode, "reason": reason, "source_sha256": resolved.source_sha256, "config": config, "argv": argv, "elapsed_seconds": time.monotonic() - started, "log_directory": str(logs), "evidence_label": EVIDENCE}
     _write_json(output / "result.json", result)
     with (output / "report.md").open("x", encoding="utf-8") as stream:
         stream.write(f"# Offline experiment: {config['experiment']['name']}\n\n- Status: **{status}**\n- Exit code: {result['exit_code']}\n- Source SHA256: `{resolved.source_sha256}`\n- Evidence: {EVIDENCE}\n- Reason: {reason or 'benchmark completed'}\n\nMeasurements, if produced, are in `measurement/`; inspect their scope before making performance claims. No native hybrid, distributed training, model quality or speedup validation is implied.\n")

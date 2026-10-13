@@ -1,5 +1,7 @@
 # Offline inference timing analyzer fixtures
 
+Run from the repository root, create `results/inference_perf/` if needed, and use a fresh report filename. See [runtime layout](../../docs/en/RUNTIME_LAYOUT.md) ([한국어](../../docs/ko/RUNTIME_LAYOUT.md)); keep these versioned synthetic inputs in place.
+
 **These files are handwritten synthetic mechanics fixtures. No inference ran and
 none of their numbers measures a model, GPU, serving engine, or quality.**
 `synthetic_requests.jsonl` labels every record `synthetic: true`; accepting it
@@ -12,7 +14,7 @@ python3 scripts/analyze_inference_requests.py --help
 python3 scripts/analyze_inference_requests.py \
   --requests configs/inference_perf/synthetic_requests.jsonl \
   --config configs/inference_perf/synthetic_config.json \
-  --allow-synthetic --output /tmp/nemochat-synthetic-inference-report.json
+  --allow-synthetic --output results/inference_perf/my-synthetic-report.json
 .venv/bin/python -m pytest -q tests/test_inference_perf.py
 ```
 

@@ -1,5 +1,7 @@
 # NemoChat: Long/Short Alternating CPT and NIAH Evaluation Plan
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 Status: historical source-verified design. Tiny-HF CPU inference and measured NIAH heatmaps have since been exercised (six requests, 0/6 matches); see [execution evidence](../IMPLEMENTATION_VERIFICATION.md). NemoChat GPU long-context training/inference and target-model heatmaps remain untested.
 
 ## 1. What the Nemotron 3 Super report actually says
@@ -137,10 +139,10 @@ Required generated outputs from **actual model predictions**, never illustrative
 
 - `results/niah/<checkpoint>/predictions.jsonl`: per-request input hash, source/seed, length/depth, response, gold answer, score/status, timing and model/backend metadata.
 - `results/niah/<checkpoint>/cells.csv`: successes/trials, error counts, exact-match rate and confidence interval per cell.
-- `figures/niah/<checkpoint>_heatmap.png` and `.svg`: x=context length, y=needle depth, fixed 0..1 accuracy color scale across checkpoints, cell n and score annotations; missing/unsupported cells shaded distinctly.
-- `figures/niah/lc_checkpoint_comparison.png`: aligned pre-LC/post-LC-1/post-LC-2 heatmaps.
-- `figures/niah/accuracy_vs_length.png`: depth-aggregated accuracy with uncertainty and disclosed weighting.
-- `figures/niah/long_vs_short_retention.png`: NIAH performance plus separate short math/code retention panels across checkpoints. Do not place different metrics on an unlabeled shared axis.
+- `results/niah/plots/<checkpoint>_heatmap.png` and `.svg`: x=context length, y=needle depth, fixed 0..1 accuracy color scale across checkpoints, cell n and score annotations; missing/unsupported cells shaded distinctly.
+- `results/niah/plots/lc_checkpoint_comparison.png`: aligned pre-LC/post-LC-1/post-LC-2 heatmaps.
+- `results/niah/plots/accuracy_vs_length.png`: depth-aggregated accuracy with uncertainty and disclosed weighting.
+- `results/niah/plots/long_vs_short_retention.png`: NIAH performance plus separate short math/code retention panels across checkpoints. Do not place different metrics on an unlabeled shared axis.
 
 Each figure includes checkpoint ID, decoding/template settings, tokenizer/backend revision, evaluation pack hash and trial counts. Save an English caption/limitations and a separate Korean explanatory caption. Derive all plots solely from raw results, so a reviewer can regenerate them without access to training logs.
 

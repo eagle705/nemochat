@@ -25,7 +25,7 @@ P=tutorials/nemo_lens/.venv/bin/python
 LAB=tutorials/nemo_lens/rollout
 $P tutorials/nemo_lens/verify_jaeger.py
 for scenario in baseline tool-slow tool-straggler; do
-  out="outputs/lens-rollout/my-${scenario}"
+  out="results/lens-rollout/my-${scenario}"
   $P "$LAB/run.py" --scenario "$scenario" --mode otlp --output "$out"
   $P "$LAB/diagnose.py" --spans "$out/spans.jsonl" --output "$out/diagnosis.json"
   $P "$LAB/verify.py" --result "$out/result.json"
@@ -100,3 +100,7 @@ demo.rl.batch
 Pinned OTel 1.43.0 JSON formatter는 원래 ns가 아니라 반올림한 6자리 µs를 저장한다. 저장된 정밀도를 보존하고 Jaeger의 start/duration floor 차이만 검증된 1µs start·2µs duration/end·1µs parent-end 범위로 허용한다. 기록값을 바꾸지 않는다. Float64 tag의 integer JSON 표현은 semantic type으로 확인하며 bool/int identity는 엄격히 구분한다.
 
 최종 세 시나리오는 `outputs/precommit-whole/final-cycle2-{baseline,tool-slow,tool-straggler}/`에서 각각 25-span 정확한 계층·timestamp 검증을 통과했다. 최신 straggler trace `631328f77ad238252a254beb63c04620`를 실제 Chromium에서 7 operation·25 spans·JS error 없음으로 확인했다. Screenshot `outputs/precommit-whole/final-cycle2-ui/trace.png`는 private ignored artifact. 이전 관측값은 별도로 보존하며 native RL/Gym/vLLM/Nsight/GPU 승인이 아니다.
+
+## Runtime layout / 실행 자료 경로
+
+Use repository-root `datasets/`, `checkpoints/`, `results/`, and `logs/`; see [runtime layout](../../../docs/en/RUNTIME_LAYOUT.md) and [한국어](../../../docs/ko/RUNTIME_LAYOUT.md). Relative CLI output paths use the caller working directory. Historical recorded paths/measurements below remain unchanged; prior host artifacts physically migrated, with relative compatibility links and SHA-256 inventory in root `results/runtime-layout-migration.json`. Tutorial benchmark stdout/stderr now go to root `logs/nemo_lens/<output-name>/` (override `--log-output`); use a fresh name for both results and logs.

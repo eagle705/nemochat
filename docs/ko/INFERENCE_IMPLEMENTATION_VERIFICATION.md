@@ -20,3 +20,7 @@ Nonblocking 후속 제안: 매우 깊은 malformed JSON의 RecursionError를 일
 ## 미검증
 
 실제 load generator/serving, GPU memory/Nsight/Triton, model quality, 분산 inference, 성능 개선/regression 채택/upstream PR은 미실행이다. Imported timestamp·누락 요청·환경은 독립 인증하지 않는다. 기존 skip을 GPU 검증으로 해석하지 않는다. Commit/push/공개 작업 없음.
+
+## 런타임 경로 migration 참고
+
+위 과거 실행 기록의 경로·timestamp·결과는 원래 증거로 보존합니다. 새 실행은 [저장소 루트 런타임 규약](RUNTIME_LAYOUT.md)을 따르고, 이동된 로컬 산출물은 runtime migration manifest의 old → new 매핑으로 찾습니다. Receipt의 remote path/revision/hash와 inventory 상대 경로를 변경하거나 기존 산출물을 덮어쓰지 않습니다.

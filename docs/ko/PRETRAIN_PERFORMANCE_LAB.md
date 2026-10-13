@@ -1,5 +1,7 @@
 # Pretraining 성능 실습: Nsight Systems → Triton fusion
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 Canonical 명세: [PRETRAIN_PERFORMANCE_LAB.md](../en/PRETRAIN_PERFORMANCE_LAB.md).
 
 ## 상태와 목표
@@ -63,7 +65,7 @@ CUDA Graph는 필요할 때 별도 launch-overhead 비교군으로 둔다. Fusio
 - `scripts/benchmark_pretrain_fusion.py`: 독립 benchmark와 JSON
 - `tests/test_pretrain_fusion.py`: CPU 계약 테스트 및 CUDA correctness 테스트
 - `configs/performance/`: shape/측정 protocol
-- Git에서 제외되는 `outputs/performance/<unique-run>/`: 설정·raw timing/memory·오차·trace·결과 보고서
+- Git에서 제외되는 `results/performance/<unique-run>/`: 설정·raw timing/memory·오차·trace·결과 보고서
 
 W&B에서는 `pretrain` stage 아래 implementation/benchmark-role을 구분한다. Microbenchmark/replay 결과를 실제 corpus 학습 throughput과 섞지 않고, profiler 때문에 느려진 값을 budget planner에 넣지 않는다.
 

@@ -36,7 +36,7 @@ python3 -m venv --system-site-packages .venv
 # it is machine-local, ignored, and never changes the project's environment.
 .venv/bin/python -m lens_nsight_bridge doctor
 .venv/bin/python -m lens_nsight_bridge run --lens \
-  --output /home/ubuntu/nemochat/outputs/my-lens-moe-cpu
+  --output /home/ubuntu/nemochat/results/my-lens-moe-cpu
 .venv/bin/python -m pytest -q
 ```
 
@@ -69,14 +69,14 @@ cannot instrument an arbitrary Python training script.
 ```bash
 # Requires actual installed compatible Nsight + CUDA. This host is blocked.
 .venv/bin/python launch.py launch \
-  --output /home/ubuntu/nemochat/outputs/my-lens-moe-cuda
+  --output /home/ubuntu/nemochat/results/my-lens-moe-cuda
 # Equivalent discovery/configuration shape (verify installed CLI help first):
 export NSYS_PLUGIN_SEARCH_DIRS="$PWD/nsight"
 nsys plugins list
 nsys profile --enable=nemo_lens_nsight_bridge --trace=cuda,nvtx \
-  --output=/home/ubuntu/nemochat/outputs/my-lens-capture \
+  --output=/home/ubuntu/nemochat/results/my-lens-capture \
   "$PWD/.venv/bin/python" -m lens_nsight_bridge run --device cuda --lens \
-  --output /home/ubuntu/nemochat/outputs/my-lens-moe-user-code
+  --output /home/ubuntu/nemochat/results/my-lens-moe-user-code
 ```
 
 `launch` probes the installed `--version`, `profile --help`, `plugins --help`, and
@@ -99,7 +99,7 @@ panel installed into Nsight**. Copy an exact bridge ID from the range label:
 
 ```bash
 .venv/bin/python -m lens_nsight_bridge snippet \
-  --output /home/ubuntu/nemochat/outputs/my-lens-moe-cpu \
+  --output /home/ubuntu/nemochat/results/my-lens-moe-cpu \
   --bridge-id '<exact bridge ID from operations.jsonl or captured NVTX>' \
   --current-root "$PWD"
 ```
@@ -179,3 +179,7 @@ until launch correlation/backtrace/compiler metadata establishes a supported map
   dispatcher / grouped experts / combine / backward annotations and Lens groups,
   reconcile native scopes with explicit IDs, then exercise distributed/CUDA
   correctness and instrumentation overhead. No broad global monkeypatch is used.
+
+## Runtime layout / 실행 자료 경로
+
+Use repository-root `datasets/`, `checkpoints/`, `results/`, and `logs/`; see [runtime layout](../../docs/en/RUNTIME_LAYOUT.md) and [한국어](../../docs/ko/RUNTIME_LAYOUT.md). Relative CLI output paths use the caller working directory. Historical recorded paths/measurements below remain unchanged; prior host artifacts physically migrated, with relative compatibility links and SHA-256 inventory in root `results/runtime-layout-migration.json`. Tutorial benchmark stdout/stderr now go to root `logs/nemo_lens/<output-name>/` (override `--log-output`); use a fresh name for both results and logs.

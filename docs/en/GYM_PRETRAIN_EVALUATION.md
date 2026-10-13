@@ -1,5 +1,7 @@
 # Official NeMo Gym evaluation of pretraining checkpoints
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 ## What is implemented (and what is not)
 
 `scripts/gym_eval.py` is a **result importer and paired comparison**, not a new benchmark runner or scorer. Run the official Gym evaluator separately, then import its numeric metrics and original JSONL rollout artifacts. It makes no model requests, purchases no judge calls, downloads no datasets, and does not convert failed inference into incorrect answers. Existing CE/BPB and CORE diagnostics remain unchanged: use `scripts/base_eval.py` alongside this evaluation, not in place of it.
@@ -36,15 +38,16 @@ Use a **separate reviewed, installed, pinned Gym checkout**. This tutorial does 
 The following are source-verified command templates, **not commands exercised here**. Run from the pinned Gym checkout after installation and hardware validation. Replace paths and use a real supported context length (4096 here is illustrative, not a validated checkpoint limit).
 
 ```bash
+NEMOCHAT_ROOT=/absolute/path/to/nemochat  # NemoChat root, not the Gym CWD
 git checkout 804c12a7d56a151a98ae150a352350e3c856ba47
 gym eval prepare --benchmark ruler/config_pretrain \
-  "+prepare_script_args.model='/absolute/export/raw'" \
+  "+prepare_script_args.model='$NEMOCHAT_ROOT/checkpoints/exports/step_100/raw'" \
   '+prepare_script_args.length=4096' \
   '+prepare_script_args.data_format=default'
 
 gym eval run --benchmark ruler/config_pretrain \
-  --model /absolute/export/raw \
-  --output /absolute/results/step_100/raw/ruler.jsonl \
+  --model "$NEMOCHAT_ROOT/checkpoints/exports/step_100/raw" \
+  --output "$NEMOCHAT_ROOT/results/gym/step_100/raw/ruler.jsonl" \
   --split benchmark --temperature 0 --top-p 1 \
   ++reuse_existing_data_preparation=true \
   ++policy_model.responses_api_models.local_vllm_model.vllm_serve_kwargs.max_model_len=4096 \
@@ -53,7 +56,7 @@ gym eval run --benchmark ruler/config_pretrain \
 
 Repeat against the merged export at the **same training step**, with its own fresh output path and identical prepared dataset. Reuse one tokenizer and one byte-identical input file; do not independently regenerate randomized RULER inputs for each model. Save the collated/materialized input JSONL actually used by collection, not merely an earlier preparation file if processing changed it. The importer requires zero-based contiguous task indices and a complete repeat grid for a single task artifact.
 
-For MMLU, the pinned README documents `gym eval prepare --benchmark mmlu`, `gym env start --model-type vllm_model --benchmark mmlu`, and `gym eval run --no-serve --agent mmlu_mcqa_simple_agent --input benchmarks/mmlu/data/mmlu_benchmark.jsonl --output results/mmlu/rollouts.jsonl --prompt-config benchmarks/prompts/eval/aai/mcq-4choices-boxed.yaml`. This assumes a working configured model backend. Do not apply a chat template to a base model without declaring the change. The existing `long_context/niah.py` client uses plain `/v1/completions` (or `client.completions.create`) and its own exact-match scorer; `scripts/serve_cpu.py` is a loopback HF smoke server capped at 64 generated tokens. Neither is an official Gym model-server/agent/environment integration, and their scores are not imported as official Gym results. A generic OpenAI chat client is not automatically compatible with Gym's Responses API model-server/agent/environment chain. Native base text completion is source-verified specifically for the RULER pretraining profile, not universally for every task.
+For MMLU, the pinned README documents `gym eval prepare --benchmark mmlu`, `gym env start --model-type vllm_model --benchmark mmlu`, and `gym eval run --no-serve --agent mmlu_mcqa_simple_agent --input benchmarks/mmlu/data/mmlu_benchmark.jsonl --output results/mmlu/rollouts.jsonl --prompt-config benchmarks/prompts/eval/aai/mcq-4choices-boxed.yaml`. That upstream command uses Gym-relative benchmark inputs; for a NemoChat run replace only its output with `--output "$NEMOCHAT_ROOT/results/gym/mmlu/rollouts.jsonl"`. Retain the materialized prepared input in `datasets/gym/<run>/` with provenance without altering upstream preparation contracts. This assumes a working configured model backend. Do not apply a chat template to a base model without declaring the change. The existing `long_context/niah.py` client uses plain `/v1/completions` (or `client.completions.create`) and its own exact-match scorer; `scripts/serve_cpu.py` is a loopback HF smoke server capped at 64 generated tokens. Neither is an official Gym model-server/agent/environment integration, and their scores are not imported as official Gym results. A generic OpenAI chat client is not automatically compatible with Gym's Responses API model-server/agent/environment chain. Native base text completion is source-verified specifically for the RULER pretraining profile, not universally for every task.
 
 Official aggregation calls each environment/resource server's `/aggregate_metrics`. The saved aggregate artifact is a list of entries with `agent_ref`, `agent_metrics`, `key_metrics`, `group_level_metrics`, and `repeat_level_metrics`. Dataset preparation `*_benchmark_metrics.json` files describe dataset statistics and are **not model evaluation scores**. The pinned path helper maps `ruler.jsonl` to `ruler_aggregate_metrics.json`. Locate the aggregation artifact in the actual Gym command output. If `mean/reward` exists for your entry, its JSON pointer is `/0/agent_metrics/mean~1reward`; inspect the artifact first rather than assuming entry order or metric availability.
 
@@ -86,9 +89,9 @@ Duplicate for `merged`, changing only variant-specific weights, rollouts and met
 
 ```bash
 PYTHONPATH=src .venv/bin/python scripts/gym_eval.py \
-  --manifest /absolute/results/manifest.json \
+  --manifest results/gym/my-run/manifest.json \
   --gym-root /absolute/pinned/Gym \
-  --output /absolute/results/gym_comparison.json
+  --output results/gym/my-run/gym_comparison.json
 ```
 
 Use one task and one agent per official aggregation artifact; multi-agent files are rejected rather than selecting a potentially unrelated entry. The stdlib-only importer checks source pin, clean tracked Gym checkout, config existence, paired task coverage, checkpoint identity across tasks at each step/variant, input counts, complete rollout identities, finite official rewards, mask/failure fields, numeric selected metrics and matching protocol/tokenizer/input/config fingerprints. It refuses overwriting output. It emits imported official scores, per-task merged-minus-raw deltas, file paths and SHA-256 evidence. It does **not** recompute official metrics or combine tasks with incompatible scales. Completeness checks intentionally reject partial/masked/error runs rather than quietly intersecting surviving examples.

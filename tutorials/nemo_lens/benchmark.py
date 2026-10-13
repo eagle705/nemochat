@@ -30,6 +30,8 @@ def verify_file(path, result):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--log-output", type=Path,
+                        help="fresh log directory; default: repository logs/nemo_lens/<output-name>")
     parser.add_argument("--steps", type=int, default=400)
     parser.add_argument("--warmup", type=int, default=40)
     parser.add_argument("--repetitions", type=int, default=8)
@@ -43,7 +45,15 @@ def main():
     modes = list(MODES[:-1] if args.skip_otlp else MODES)
     if not args.skip_otlp:
         wait_ready(args.api)
+    log_output = args.log_output or Path(__file__).resolve().parents[2] / "logs" / "nemo_lens" / args.output.name
+    # Both locations must be fresh and disjoint; never replace existing results or logs.
+    output_path, log_path = args.output.resolve(), log_output.resolve()
+    if output_path == log_path or output_path in log_path.parents or log_path in output_path.parents:
+        parser.error("result and log directories must be disjoint")
+    if args.output.exists() or args.output.is_symlink() or log_output.exists() or log_output.is_symlink():
+        parser.error("result and log directories must be fresh")
     args.output.mkdir(parents=True, exist_ok=False)
+    log_output.mkdir(parents=True, exist_ok=False)
     rows, order = [], []
     # Rotate first position; default eight repetitions balances all four positions twice.
     for repetition in range(args.repetitions):
@@ -58,8 +68,11 @@ def main():
             process_ns = time.perf_counter_ns() - start
             row = json.loads((child / "result.json").read_text())
             row.update(repetition=repetition, process_ns=process_ns)
-            (child / "stdout.log").write_text(completed.stdout)
-            (child / "stderr.log").write_text(completed.stderr)
+            child_logs = log_output / child.name
+            child_logs.mkdir(exist_ok=False)
+            (child_logs / "stdout.log").write_text(completed.stdout)
+            (child_logs / "stderr.log").write_text(completed.stderr)
+            row["log_directory"] = str(child_logs.resolve())
             if mode == "file":
                 verify_file(child / "spans.jsonl", row)
             if mode == "otlp":

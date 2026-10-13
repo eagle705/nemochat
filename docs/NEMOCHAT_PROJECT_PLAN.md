@@ -1,5 +1,7 @@
 # NemoChat Implementation Plan
 
+새 런타임 산출물의 저장소 루트 경로는 [runtime layout](en/RUNTIME_LAYOUT.md) ([한국어](ko/RUNTIME_LAYOUT.md))를 따릅니다. 과거 실행 증거 경로는 변경하지 않고 migration manifest 매핑으로 조회합니다.
+
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task. 해당 skill이 제공되지 않는 실행 환경에서는 독립 작업 위임과 명시적인 코드/명세 검토로 대체한다.
 
 **Goal:** NVIDIA 데이터·학습·프로파일링·서빙 SDK를 실제로 연결하여, 약 13.8B total / 2B active의 Nemotron-inspired 학생 모델을 데이터 구축 → pretraining → mid-training → long-context → SFT → RLVR → MOPD까지 만드는 재현 가능한 레퍼런스 튜토리얼.
@@ -671,7 +673,7 @@ A의 파라미터당 16B를 가정한 전형적인 mixed-precision Adam 전체 �
 - [ ] `src/nemochat/train/lc_controller.py`, `tests/test_lc_schedule.py`, `tests/test_lc_token_accounting.py`, `tests/test_lc_resume.py`: long/4K update alternation와 checkpoint resume.
 - [ ] `src/nemochat/eval/niah_{generate,run,score,plot}.py`, `configs/eval/niah_{smoke,64k,256k}.yaml`.
 - [ ] `tests/test_niah_fixture.py`, `tests/test_niah_scoring.py`, `tests/test_niah_plot_inputs.py`: 실제 tokenizer 길이/needle 보존·score·raw-results 기반 Figure 검증.
-- [ ] `results/niah/<checkpoint>/{predictions.jsonl,cells.csv}`, `figures/niah/` 실제 inference Figure. CI fixture Figure를 모델 측정 결과로 공개하지 않는다.
+- [ ] `results/niah/<checkpoint>/{predictions.jsonl,cells.csv}`, `results/niah/<checkpoint>/plots/` 실제 inference Figure. CI fixture Figure를 모델 측정 결과로 공개하지 않는다.
 - [ ] `evals/{base,math,code,long_context,instruction}/` 및 stage별 result schema.
 - [ ] `src/nemochat/eval/{token_bytes,bpb,core_adapter,base_eval}.py`, `configs/eval/{base_quick,base_full}.yaml`: pinned nanochat-compatible evaluation pack, Super raw-byte/TP-CP-EP parity, CORE baseline/answer-span/teacher-forced tests 및 실제 inference Figure.
 - [ ] ClimbMix revision/shards/quota/provenance/license manifest와 last validation shard exclusion; full-corpus downloader/repackaging script 실행 금지.

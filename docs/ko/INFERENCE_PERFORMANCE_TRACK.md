@@ -1,5 +1,7 @@
 # 독립 Inference Performance 트랙
 
+새 CLI 실행은 저장소 루트 기준 경로와 새 산출물 이름을 사용합니다. [런타임 디렉터리 규약](RUNTIME_LAYOUT.md)에 따라 입력 데이터는 `datasets/`, checkpoint는 `checkpoints/`, 보고서·trace·plot은 `results/`, 텍스트/W&B 로그는 `logs/`에 둡니다. 필요한 부모 폴더만 만들며 기존 fixture/config와 과거 증거 경로는 보존합니다.
+
 Canonical: [INFERENCE_PERFORMANCE_TRACK.md](../en/INFERENCE_PERFORMANCE_TRACK.md).
 
 ## 목적과 경계
@@ -66,7 +68,7 @@ VLM은 지원 모델로 image resolution/count, preprocessing cache, prompt/outp
 
 ## I7: Run 기록/regression/upstream
 
-Config/input/source identity, raw requests, window/warmup/repeats, 실패, quality, trace를 보관한다. Git 제외 `outputs/inference_perf/`의 새 경로만 사용한다. 호환되는 workload/resource/quality policy끼리 비교한다. 안정된 runner에서 noise/regression 기준을 사전 정의한다.
+Config/input/source identity, raw requests, window/warmup/repeats, 실패, quality, trace를 보관한다. Git 제외 `results/inference_perf/`의 새 경로만 사용한다. 호환되는 workload/resource/quality policy끼리 비교한다. 안정된 runner에서 noise/regression 기준을 사전 정의한다.
 
 첫 engine upstream 기여는 작은 patch·최소 재현·correctness·benchmark evidence로 묶는다. 회사 IP/publication 규정을 확인하고 commit/push/공개 PR은 별도 승인한다.
 

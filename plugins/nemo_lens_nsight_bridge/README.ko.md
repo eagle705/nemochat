@@ -31,7 +31,7 @@ python3 -m venv --system-site-packages .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m lens_nsight_bridge doctor
 .venv/bin/python -m lens_nsight_bridge run --lens \
-  --output /home/ubuntu/nemochat/outputs/my-lens-moe-cpu
+  --output /home/ubuntu/nemochat/results/my-lens-moe-cpu
 .venv/bin/python -m pytest -q
 ```
 
@@ -61,7 +61,7 @@ import하고 해당 함수 호출을 감싸야 합니다**. 예:
 ```bash
 # 실제 호환 Nsight 및 CUDA 호스트에서만 가능; 현재 호스트에서는 차단됨
 .venv/bin/python launch.py launch \
-  --output /home/ubuntu/nemochat/outputs/my-lens-moe-cuda
+  --output /home/ubuntu/nemochat/results/my-lens-moe-cuda
 ```
 
 런처는 `NSYS_PLUGIN_SEARCH_DIRS`를 추가하고 실제 `--version`, `profile --help`,
@@ -80,7 +80,7 @@ Nsight에 설치되는 패널이 아닙니다. 정확한 bridge ID를 복사해:
 
 ```bash
 .venv/bin/python -m lens_nsight_bridge snippet \
-  --output /home/ubuntu/nemochat/outputs/my-lens-moe-cpu \
+  --output /home/ubuntu/nemochat/results/my-lens-moe-cpu \
   --bridge-id '<operation/NVTX의 정확한 ID>' --current-root "$PWD"
 ```
 
@@ -122,3 +122,7 @@ dispatch/grouped experts/combine/backward NVTX와 Lens group을 조사하고 중
 
 공식 Nsight manifest/discovery, 고정 Lens file exporter/setup API 링크와 실제
 명령/결과는 [영문 문서](README.md), [작업 로그](WORK_LOG.md)에 있습니다.
+
+## Runtime layout / 실행 자료 경로
+
+Use repository-root `datasets/`, `checkpoints/`, `results/`, and `logs/`; see [runtime layout](../../docs/en/RUNTIME_LAYOUT.md) and [한국어](../../docs/ko/RUNTIME_LAYOUT.md). Relative CLI output paths use the caller working directory. Historical recorded paths/measurements below remain unchanged; prior host artifacts physically migrated, with relative compatibility links and SHA-256 inventory in root `results/runtime-layout-migration.json`. Tutorial benchmark stdout/stderr now go to root `logs/nemo_lens/<output-name>/` (override `--log-output`); use a fresh name for both results and logs.

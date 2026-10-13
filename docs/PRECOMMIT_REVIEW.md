@@ -64,3 +64,7 @@ All three independent re-reviews passed with **no remaining blocking security, l
 Minor documentation clarification: supplied NIAH config values override CLI random-depth flags; both language companions now explain how to select random depths. Malformed CPU checkpoint JSON roots fail closed but may produce a less helpful AttributeError; diagnostic hardening remains a nonblocking suggestion.
 
 The reviewed local CPU foundation, WSD controls, official WSM tooling and Gym importer are **ready to commit**. No claim of actual NemoChat GPU training, target hybrid export compatibility, official Gym inference or WSM quality gain is approved. Trusted immutable single-writer checkpoints, nontransactional save behavior and caller-controlled SDK transports remain documented limitations. No staging/commit/push performed.
+
+## Runtime-path migration reference
+
+The historical paths, timestamps and results above remain original evidence. For new runs follow the [repository-root runtime layout](en/RUNTIME_LAYOUT.md); locate relocated local artifacts through the runtime migration manifest's old → new mappings. Preserve receipt remote paths/revisions/hashes and inventory-relative payload paths; never overwrite existing artifacts.

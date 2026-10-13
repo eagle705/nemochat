@@ -1,5 +1,7 @@
 # Independent Inference Performance Track
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 ## Purpose and evidence boundary
 
 This track targets the ability to turn performance models and profiler evidence into reproducible engine improvements. It complements, rather than replaces, the [pretraining performance lab](PRETRAIN_PERFORMANCE_LAB.md). Preserve the existing WSD/WSM method and training resume contracts.
@@ -81,7 +83,7 @@ A later supported VLM control must preserve image resolution/count and prompt/ou
 
 ## I7 — Canonical records, regression gates and upstream contribution
 
-Keep immutable source/config/input identities, complete raw request records (or privacy-safe equivalents), measurement-window definitions, resource allocation, warmup, repeats, failed requests, quality artifacts and trace handles. Store new run directories under ignored `outputs/inference_perf/`; never overwrite existing reports.
+Keep immutable source/config/input identities, complete raw request records (or privacy-safe equivalents), measurement-window definitions, resource allocation, warmup, repeats, failed requests, quality artifacts and trace handles. Store new run directories under ignored `results/inference_perf/`; never overwrite existing reports.
 
 Compare only compatible workloads/resources/quality policies. Predeclare tolerated noise and regression thresholds using stable runners and repeated baseline measurements; shared-GPU variability is not proof of code regression. Do not approve an optimization solely from a fixture, profiler summary or a single best run.
 

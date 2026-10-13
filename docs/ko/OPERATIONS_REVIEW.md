@@ -13,3 +13,7 @@ Storage는 최초 footprint와 cleanup 전 다음 write를 포함하지만 완�
 W&B의 실제 offline SDK와 CPU exact-state 비교는 검증됐다. Schema/실패 처리 보강 완료. 부모 전체 회귀는 **358 passed, 1 skipped, 25 subtests passed**이며 실제 offline SDK 테스트도 포함한다. Dependency·compileall·wheel·문서 링크/동반 문서·JSON 검증 통과. CUDA RNG·다중 rank·checkpoint/run-ID 자동 일치는 미검증이다. Secret key 필터는 value 기반 DLP가 아니므로 credential이 포함된 URL/path/metadata를 전달하지 않는다.
 
 실제 HF remote 왕복·W&B online은 미실행이다. Native bundle inventory 검증은 실제 checkpoint deserialize/optimizer resume 증거가 아니다. Synthetic transport fixture는 정상 model state로 가장하지 않는다.
+
+## 런타임 경로 migration 참고
+
+위 과거 실행 기록의 경로·timestamp·결과는 원래 증거로 보존합니다. 새 실행은 [저장소 루트 런타임 규약](RUNTIME_LAYOUT.md)을 따르고, 이동된 로컬 산출물은 runtime migration manifest의 old → new 매핑으로 찾습니다. Receipt의 remote path/revision/hash와 inventory 상대 경로를 변경하거나 기존 산출물을 덮어쓰지 않습니다.

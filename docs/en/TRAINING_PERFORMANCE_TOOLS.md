@@ -1,5 +1,7 @@
 # Offline dense full-update performance tools
 
+For new CLI runs, use repository-root paths and fresh artifacts; see [runtime layout](RUNTIME_LAYOUT.md). Inputs belong in `datasets/`, checkpoints in `checkpoints/`, reports/traces/plots in `results/`, and text/W&B logs in `logs/`. Create required parent directories, not final no-overwrite output directories. Checked-in fixtures/configs and historical evidence paths remain unchanged.
+
 ## Implemented scope
 
 `src/nemochat/training_perf.py` implements a small **standalone educational dense causal Transformer**, not the native NemoChat hybrid Latent MoE/Bridge/MCore path. It trains from seeded generated token batches with real cross-entropy, backward and AdamW updates. No downloads, actual corpus, tokenizer, model-quality evaluation, Triton, distributed training or checkpoint/resume are involved. Native hybrid training remains unimplemented. This control does not change WSD/WSM defaults.
@@ -11,7 +13,7 @@
 
 ## Direct CPU smoke
 
-Save this complete JSON as `/tmp/dense-control.json` (no credentials). Unknown/missing keys, booleans used as integers, nonfinite/nonpositive rates and invalid counts are rejected. The direct JSON and YAML runner share the [same bounded schema](AGENT_EXPERIMENT_CONTRACT.md): name is 1–64 ASCII letters/digits/`_.-` starting with a letter/digit; seed is 0–2^32−1; vocabulary is 2–65536; learning rate is in (0,1]; CPU requires float32 and GPU budget 0, CUDA requires GPU budget 1; max_seconds is 1–3600. All per-field and combined resource bounds apply. JSON config is at most 32 KiB and comparison input at most 8 MiB per file. Duplicate keys and non-finite numbers (including exponent overflow) are rejected; malformed UTF-8/JSON, parser recursion and huge-integer errors return clean CLI rejection before creating output.
+Save this complete JSON as `results/training_perf/my-inputs/dense-control.json` (no credentials). Unknown/missing keys, booleans used as integers, nonfinite/nonpositive rates and invalid counts are rejected. The direct JSON and YAML runner share the [same bounded schema](AGENT_EXPERIMENT_CONTRACT.md): name is 1–64 ASCII letters/digits/`_.-` starting with a letter/digit; seed is 0–2^32−1; vocabulary is 2–65536; learning rate is in (0,1]; CPU requires float32 and GPU budget 0, CUDA requires GPU budget 1; max_seconds is 1–3600. All per-field and combined resource bounds apply. JSON config is at most 32 KiB and comparison input at most 8 MiB per file. Duplicate keys and non-finite numbers (including exponent overflow) are rejected; malformed UTF-8/JSON, parser recursion and huge-integer errors return clean CLI rejection before creating output.
 
 ```json
 {
@@ -31,14 +33,14 @@ Save this complete JSON as `/tmp/dense-control.json` (no credentials). Unknown/m
 ```bash
 .venv/bin/python scripts/benchmark_training.py --help
 .venv/bin/python scripts/benchmark_training.py \
-  --config /tmp/dense-control.json --output /tmp/dense-baseline/measurement
+  --config results/training_perf/my-inputs/dense-control.json --output results/training_perf/my-baseline/measurement
 # Repeat with activation_checkpointing=true in a separate JSON, all else equal:
 .venv/bin/python scripts/benchmark_training.py \
-  --config /tmp/dense-checkpoint.json --output /tmp/dense-candidate/measurement
+  --config results/training_perf/my-inputs/dense-checkpoint.json --output results/training_perf/my-candidate/measurement
 .venv/bin/python scripts/compare_training_runs.py \
-  --baseline /tmp/dense-baseline/measurement/result.json \
-  --candidate /tmp/dense-candidate/measurement/result.json \
-  --output /tmp/dense-comparison.json
+  --baseline results/training_perf/my-baseline/measurement/result.json \
+  --candidate results/training_perf/my-candidate/measurement/result.json \
+  --output results/training_perf/my-comparison.json
 .venv/bin/python -m pytest -q tests/test_training_perf.py
 ```
 

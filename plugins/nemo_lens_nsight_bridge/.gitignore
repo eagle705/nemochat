@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+# Host-local source snapshots, telemetry and review execution artifacts.
+/artifacts/

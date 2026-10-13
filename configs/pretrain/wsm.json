@@ -1,0 +1,14 @@
+{
+  "upstream_revision": "ca4826e9555032b8710dfb4a4e5693c46c1613dd",
+  "implementation": "tools/checkpoint/weighted_merge.py",
+  "checkpoint_format": "torch_dist",
+  "schedule": "minus-sqrt",
+  "comparison": "raw target vs WSM at each milestone, same training trajectory",
+  "window_iterations": 1000,
+  "min_iteration_interval": 100,
+  "min_checkpoints": 2,
+  "save_dtype": "same",
+  "ignore_non_model_state": false,
+  "token_window_supported_upstream": false,
+  "note": "Illustrative iteration window, not a measured token window. Use recorded cumulative training token metadata to choose boundaries. This JSON is a policy example, not an upstream CLI config."
+}

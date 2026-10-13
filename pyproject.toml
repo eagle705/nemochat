@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nemochat-tutorial"
+version = "0.1.0"
+description = "Readable training systems reference lab with agent-assisted experiment contracts"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+cpu = ["transformers>=4.51,<5", "torch>=2.6", "requests>=2.31", "pyarrow>=15", "fsspec>=2024.2", "matplotlib>=3.8", "PyYAML>=6"]
+test = ["pytest>=8"]
+hub = ["huggingface_hub>=0.36.2,<1"]
+tracking = ["wandb>=0.30,<0.31"]
+
+[tool.setuptools]
+license-files = ["THIRD_PARTY_NOTICES.md"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

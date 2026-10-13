@@ -1,0 +1,23 @@
+schema_version: 1
+experiment:
+  name: dense_cpu_profile
+  seed: 42
+workload:
+  device: cpu
+  dtype: float32
+  batch_size: 2
+  sequence_length: 16
+  hidden_size: 32
+  ffn_size: 64
+  layers: 1
+  vocab_size: 128
+  learning_rate: 0.001
+  activation_checkpointing: false
+measurement:
+  warmup_steps: 1
+  measured_steps: 3
+  repeats: 2
+  profile: true
+resources:
+  max_seconds: 60
+  max_gpu_count: 0

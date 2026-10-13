@@ -1,0 +1,6 @@
+PluginName: nemo_lens_nsight_bridge
+Description: Explicit-import Python MoE role ranges with local Lens/source evidence
+ExtendedDescription: Configuration only. User code must explicitly import the bridge. No GUI panel or automatic Python injection.
+TargetEnvironment:
+  NEMO_LENS_NSIGHT_BRIDGE: "1"
+  NEMO_LENS_NSIGHT_NVTX: "1"

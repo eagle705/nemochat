@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "workload_id": "SYNTHETIC-mechanics-only-v1",
+  "tokenizer_id": "SYNTHETIC-counts-no-tokenizer",
+  "decoding_id": "SYNTHETIC-no-model",
+  "measurement_start_s": 0,
+  "measurement_end_s": 10,
+  "slo": {
+    "ttft_s": 1,
+    "e2e_s": 3,
+    "max_token_gap_s": 0.5
+  }
+}

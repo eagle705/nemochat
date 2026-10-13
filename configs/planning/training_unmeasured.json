@@ -1,0 +1,20 @@
+{
+  "hardware_label": "B300 (unmeasured)",
+  "data_parallel": 2,
+  "micro_batch_size": 1,
+  "gradient_accumulation_steps": 4,
+  "nodes": 1,
+  "gpus_per_node": 8,
+  "price_unit": "node",
+  "price_per_hour": 10,
+  "remaining_setup_seconds": 60,
+  "time_limit_seconds": 3600,
+  "budget_limit": 10,
+  "stages": [
+    {
+      "name": "unmeasured",
+      "sequence_length": 4096,
+      "target_tokens": 1000000000
+    }
+  ]
+}

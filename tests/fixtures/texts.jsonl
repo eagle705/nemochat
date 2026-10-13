@@ -1,0 +1,3 @@
+{"text":"The capital of France is Paris. This paragraph is a hand-written CPU integration fixture, not a benchmark."}
+{"text":"def square(x):\n    return x * x\n\nassert square(3) == 9\n"}
+{"text":"UTF-8 round trips: 한글, café, emoji 🧪. Preserve whitespace:\tand newlines.\n"}

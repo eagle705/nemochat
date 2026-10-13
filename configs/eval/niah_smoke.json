@@ -1,0 +1,8 @@
+{
+  "context_lengths": [4096, 65536],
+  "depths": [0.0, 0.5, 1.0],
+  "random_depths": 0,
+  "samples": 3,
+  "seed": 1729,
+  "generation_tokens": 32
+}

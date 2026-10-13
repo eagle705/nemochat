@@ -1,0 +1,133 @@
+{
+  "scope": "Actual CPU cached LM generation, scripted local HTTP tool and deterministic verification. Not learned tool use, native RL/Gym/vLLM, GPU throughput or production causal attribution. Single batch per scenario; delays explicitly injected.",
+  "versions": {
+    "nemo-lens": "0.2.0+4d045c0",
+    "opentelemetry-sdk": "1.43.0",
+    "torch": "2.14.1+cpu",
+    "transformers": "4.57.6"
+  },
+  "historical_worker_runs": [
+    {
+      "scenario": "baseline-01",
+      "artifact_directory": "outputs/lens-rollout/baseline-01",
+      "trace_id": "a6ad22ec0e2b47e559e4f3df03604a3b",
+      "span_count": 25,
+      "batch_wall_ms": 89.718,
+      "sum_trajectory_wall_ms": 231.25400000000002,
+      "tail_candidate": "generation",
+      "tail_after_penultimate_ms": 19.37
+    },
+    {
+      "scenario": "tool-slow-01",
+      "artifact_directory": "outputs/lens-rollout/tool-slow-01",
+      "trace_id": "d10ed445dd3ad207e75410ab28c5ef3b",
+      "span_count": 25,
+      "batch_wall_ms": 339.804,
+      "sum_trajectory_wall_ms": 1228.233,
+      "tail_candidate": "tool.client",
+      "tail_after_penultimate_ms": 20.29
+    },
+    {
+      "scenario": "tool-straggler-01",
+      "artifact_directory": "outputs/lens-rollout/tool-straggler-01",
+      "trace_id": "78beb8b3b7a046a7d9c6659740b2258f",
+      "span_count": 25,
+      "batch_wall_ms": 838.455,
+      "sum_trajectory_wall_ms": 975.902,
+      "tail_candidate": "tool.client",
+      "tail_after_penultimate_ms": 769.496
+    }
+  ],
+  "parent_pre_repair_runs": [
+    {
+      "scenario": "baseline",
+      "trace_id": "a253e7eea5929fec90d209ba70dd0625",
+      "spans": 25,
+      "batch_wall_ms": 91.265,
+      "sum_trajectory_wall_ms": 234.486,
+      "tail_candidate": "generation",
+      "tail_after_penultimate_ms": 19.702,
+      "path": "outputs/precommit-whole/rollout-baseline"
+    },
+    {
+      "scenario": "tool-slow",
+      "trace_id": "24d0cd5fb5339f65957841f55b7448bb",
+      "spans": 25,
+      "batch_wall_ms": 341.431,
+      "sum_trajectory_wall_ms": 1232.682,
+      "tail_candidate": "tool.client",
+      "tail_after_penultimate_ms": 20.652,
+      "path": "outputs/precommit-whole/rollout-tool-slow"
+    },
+    {
+      "scenario": "tool-straggler",
+      "trace_id": "74feb90eae1bf3feb50fc2fe1f344063",
+      "spans": 25,
+      "batch_wall_ms": 852.563,
+      "sum_trajectory_wall_ms": 1006.801,
+      "tail_candidate": "tool.client",
+      "tail_after_penultimate_ms": 775.117,
+      "path": "outputs/precommit-whole/rollout-tool-straggler"
+    }
+  ],
+  "source_sha256_at_parent_execution": {
+    "run.py": "af2b3ab157e27343d65cc68238dc0d5e40007e4110151b0a60fecfba8a1ff354",
+    "test_rollout.py": "5ab4e9125b5257e62b4a483b468870b42df92e082a8b9c0fbaa38ab0f439b59f",
+    "verify.py": "ccbe960963743689dff7ecc5ced0ad23cafad400b939308ed8f0d0712c05d261",
+    "diagnose.py": "add714338061329af9f390294124c2b9c48450e31bc7133e75535b7eeb717e86"
+  },
+  "parent_browser": {
+    "artifact_directory": "outputs/precommit-whole/rollout-ui",
+    "trace_id": "74feb90eae1bf3feb50fc2fe1f344063",
+    "stored_spans": 25,
+    "operations_rendered": 7,
+    "page_errors": []
+  },
+  "review_status": "cycle2 independent review PASS in scripted CPU/source-tree scope; no native GPU/RL/Gym/vLLM approval",
+  "parent_final_cycle2_runs": [
+    {
+      "scenario": "baseline",
+      "trace_id": "fc23cdbb36adedea0b0d513ab96afe46",
+      "span_count": 25,
+      "batch_wall_ms": 89.451,
+      "sum_trajectory_wall_ms": 230.38100000000003,
+      "tail_candidate": "generation",
+      "tail_after_penultimate_ms": 19.188,
+      "artifact_directory": "outputs/precommit-whole/final-cycle2-baseline"
+    },
+    {
+      "scenario": "tool-slow",
+      "trace_id": "b96753715586e000c0015484f53545bc",
+      "span_count": 25,
+      "batch_wall_ms": 340.355,
+      "sum_trajectory_wall_ms": 1229.286,
+      "tail_candidate": "tool.client",
+      "tail_after_penultimate_ms": 20.812,
+      "artifact_directory": "outputs/precommit-whole/final-cycle2-tool-slow"
+    },
+    {
+      "scenario": "tool-straggler",
+      "trace_id": "631328f77ad238252a254beb63c04620",
+      "span_count": 25,
+      "batch_wall_ms": 844.017,
+      "sum_trajectory_wall_ms": 990.22,
+      "tail_candidate": "tool.client",
+      "tail_after_penultimate_ms": 771.339,
+      "artifact_directory": "outputs/precommit-whole/final-cycle2-tool-straggler"
+    }
+  ],
+  "source_sha256_at_final_execution": {
+    "run.py": "f6ca00ca2f9cc9ec979de2d26377102dcacf62664e7ad95e1ec17da7a2671f58",
+    "test_rollout.py": "5ab4e9125b5257e62b4a483b468870b42df92e082a8b9c0fbaa38ab0f439b59f",
+    "verify.py": "a3b6c1aed1fb85f7c16bd4ab8ef3e2a74d3d0b5147fa105c01ae81c58984e1a6",
+    "test_review_hardening.py": "1de2afbbf391d20c6c9af8155fa5383fc3b4f046199c40a5ed3f45ea021e10e9",
+    "diagnose.py": "f40c8e5d0a4b9e59974f09e7a9ee76bc083779de45d26c0c10f47c039384a86b"
+  },
+  "parent_final_browser": {
+    "artifact_directory": "outputs/precommit-whole/final-cycle2-ui",
+    "trace_id": "631328f77ad238252a254beb63c04620",
+    "stored_spans": 25,
+    "operations_rendered": 7,
+    "page_errors": []
+  }
+}

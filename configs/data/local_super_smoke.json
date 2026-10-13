@@ -1,0 +1,16 @@
+{
+  "mode": "local_jsonl",
+  "files": ["tests/fixtures/texts.jsonl"],
+  "local_license": "CC0-1.0",
+  "local_attribution": "Hand-written NemoChat integration fixtures; no benchmark contents",
+  "split": "train",
+  "purpose": "smoke",
+  "rights_acknowledged": true,
+  "max_shards": 1,
+  "token_quota": 32,
+  "quota_policy": "prefix",
+  "tokenizer": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16",
+  "tokenizer_revision": "2dc98e2afe4face0e4ce40972a915c45368bd34a",
+  "reserved_hashes": {"train": [], "test": [], "validation": []},
+  "reserved_manifests": []
+}

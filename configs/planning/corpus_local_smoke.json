@@ -1,0 +1,29 @@
+{
+  "purpose": "smoke",
+  "seed": 1729,
+  "tokenizer": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16",
+  "tokenizer_revision": "2dc98e2afe4face0e4ce40972a915c45368bd34a",
+  "max_files": 1,
+  "max_input_bytes": 1048576,
+  "max_document_bytes": 4096,
+  "max_sample_documents": 2,
+  "max_sample_text_bytes": 8192,
+  "max_sample_tokens": 1024,
+  "scope": {
+    "population": "Only three handwritten tests/fixtures/texts.jsonl documents (CC0-1.0), not ClimbMix",
+    "shard_selection": "One explicitly chosen local fixture file; not randomly sampled source shards",
+    "heldout": "No heldout removal performed; not a training-ready estimate",
+    "filter": "Raw strings, no filters or truncation",
+    "dedup": "No deduplication; repetitions would count"
+  },
+  "strata": [
+    {
+      "source": "handwritten-local-fixture",
+      "shard": "texts",
+      "path": "tests/fixtures/texts.jsonl",
+      "population_documents": 3,
+      "sample_documents": 2,
+      "mode": "reservoir"
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "hardware_label": "user-measurement-example (not a B300 benchmark)",
+  "data_parallel": 2,
+  "micro_batch_size": 1,
+  "gradient_accumulation_steps": 4,
+  "nodes": 1,
+  "gpus_per_node": 8,
+  "price_unit": "node",
+  "price_per_hour": 10,
+  "remaining_setup_seconds": 60,
+  "time_limit_seconds": 3600,
+  "budget_limit": 10,
+  "stages": [
+    {
+      "name": "illustrative-short",
+      "sequence_length": 1024,
+      "target_tokens": 1000000,
+      "tokens_per_update": 8192,
+      "step_seconds": [
+        2,
+        2.2,
+        1.8
+      ],
+      "measurement_provenance": "Illustrative arithmetic fixture only; replace with observed warm steady-window timings",
+      "timing_scope": "core_compute",
+      "utilization": 0.9,
+      "checkpoint_every_updates": 50,
+      "checkpoint_seconds": 10,
+      "eval_every_updates": 100,
+      "evaluation_seconds": 20
+    },
+    {
+      "name": "illustrative-long",
+      "sequence_length": 4096,
+      "target_tokens": 1000000,
+      "tokens_per_second": 2000,
+      "measurement_provenance": "Illustrative arithmetic fixture only; replace with independent long-context measured throughput",
+      "timing_scope": "effective_wall"
+    }
+  ],
+  "storage": {
+    "checkpoint_bytes": 1000000000,
+    "retain_checkpoints": 2,
+    "existing_checkpoints": 1,
+    "eval_artifact_bytes": 1000000,
+    "retain_eval_artifacts": 2
+  }
+}

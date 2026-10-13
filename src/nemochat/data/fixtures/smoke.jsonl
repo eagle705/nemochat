@@ -1,0 +1,5 @@
+{"text": "CPU-first data preparation preserves attribution and explicit quotas."}
+{"text": "한글과 Unicode text are encoded without replacing the selected tokenizer."}
+{"text": "CPU-first data preparation preserves attribution and explicit quotas."}
+{"text": ""}
+{"text": "def square(x):\n    return x * x\n"}

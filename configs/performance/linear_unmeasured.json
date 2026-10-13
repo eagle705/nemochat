@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "batch_tokens": 32,
+  "in_features": 32,
+  "out_features": 64,
+  "dtype": "float32",
+  "provenance": {
+    "kind": "source",
+    "description": "Declared small dense-control linear shape; analytic operand counts, no profiler measurements or hardware ceilings."
+  }
+}

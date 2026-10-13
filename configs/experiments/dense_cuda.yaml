@@ -1,0 +1,23 @@
+schema_version: 1
+experiment:
+  name: dense_cuda_control
+  seed: 42
+workload:
+  device: cuda
+  dtype: float32
+  batch_size: 4
+  sequence_length: 128
+  hidden_size: 128
+  ffn_size: 256
+  layers: 2
+  vocab_size: 1024
+  learning_rate: 0.001
+  activation_checkpointing: false
+measurement:
+  warmup_steps: 1
+  measured_steps: 10
+  repeats: 2
+  profile: false
+resources:
+  max_seconds: 120
+  max_gpu_count: 1

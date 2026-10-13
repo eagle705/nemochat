@@ -1,3 +1,19 @@
+# Local tutorial runs, caches, and checkpoints (publish curated summaries separately)
+/runs/
+/artifacts/
+/data/
+/results/
+/checkpoints/
+/exports/
+/figures/
+/outputs/
+wandb/
+*.distcp
+*.safetensors
+*.pt
+*.pth
+*.bin
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -149,8 +165,10 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Environments (keep credentials out of commit candidates)
 .env
+.env.*
+!.env.example
 .envrc
 .venv
 env/

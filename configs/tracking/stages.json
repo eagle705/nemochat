@@ -1,0 +1,45 @@
+{
+  "description": "Stage vocabulary and integration availability; NOT an execution ledger or --wandb-config input",
+  "stages": {
+    "data": {
+      "registration_supported": true,
+      "training_executed_by_registration": false,
+      "entrypoint": "scripts/prepare_data.py"
+    },
+    "pretrain": {
+      "registration_supported": true,
+      "training_executed_by_registration": false,
+      "entrypoint": "scripts/train_cpu.py (CPU tiny-HF control only)"
+    },
+    "midtrain": {
+      "registration_supported": true,
+      "training_executed_by_registration": false,
+      "entrypoint": null
+    },
+    "longcontext": {
+      "registration_supported": true,
+      "training_executed_by_registration": false,
+      "entrypoint": "scripts/lc_schedule.py (schedule-plan only)"
+    },
+    "sft": {
+      "registration_supported": true,
+      "training_executed_by_registration": false,
+      "entrypoint": null
+    },
+    "rlvr": {
+      "registration_supported": true,
+      "training_executed_by_registration": false,
+      "entrypoint": null
+    },
+    "mopd": {
+      "registration_supported": true,
+      "training_executed_by_registration": false,
+      "entrypoint": null
+    }
+  },
+  "subrun_types": [
+    "evaluation",
+    "checkpoint-merge",
+    "schedule-plan"
+  ]
+}

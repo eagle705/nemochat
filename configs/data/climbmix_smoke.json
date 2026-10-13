@@ -1,0 +1,31 @@
+{
+  "mode": "climbmix",
+  "source": {
+    "repository": "karpathy/climbmix-400b-shuffle",
+    "revision": "915333b4f8b8684f39aeaafea600fea6f43fb703",
+    "original_repository": "nvidia/Nemotron-ClimbMix",
+    "original_revision": "5eaa64b9c0c85b7f56af01d7dffdb0795816b12b",
+    "license": "CC-BY-NC-4.0",
+    "derivative_card_license": "MIT (does not waive upstream conditions)",
+    "attribution": "NVIDIA Nemotron-ClimbMix; Karpathy seed-42 shuffled GPT-2 detokenized repackaging",
+    "use": "noncommercial educational only"
+  },
+  "split": "train",
+  "purpose": "smoke",
+  "rights_acknowledged": true,
+  "shards": [
+    "shard_00000.parquet"
+  ],
+  "max_shards": 1,
+  "max_download_bytes": 100000000,
+  "token_quota": 256,
+  "quota_policy": "prefix",
+  "tokenizer": "gpt2",
+  "tokenizer_revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+  "reserved_hashes": {
+    "train": [],
+    "test": [],
+    "validation": []
+  },
+  "reserved_manifests": []
+}

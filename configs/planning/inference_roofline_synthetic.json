@@ -1,0 +1,13 @@
+{
+  "scope": "single_operator",
+  "operator": "illustrative_operator_not_a_gpu_benchmark",
+  "flops": 1200000000,
+  "dram_bytes": 300000000,
+  "effective_compute_flops_per_second": 600000000000,
+  "effective_bandwidth_bytes_per_second": 100000000000,
+  "observed_seconds": 0.006,
+  "provenance": {
+    "kind": "synthetic",
+    "description": "Handwritten arithmetic fixture only; invented illustrative workload, ceilings and timing. No GPU specification or measurement."
+  }
+}

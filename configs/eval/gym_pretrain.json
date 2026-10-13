@@ -1,0 +1,10 @@
+{
+  "source": {
+    "repository": "https://github.com/NVIDIA-NeMo/Gym",
+    "revision": "804c12a7d56a151a98ae150a352350e3c856ba47"
+  },
+  "fixture": false,
+  "tasks": ["ruler_pretrain"],
+  "runs": [],
+  "note": "Deliberately unmeasured template. Supply real raw and merged runs per checkpoint step using the documented manifest schema; empty runs must fail."
+}

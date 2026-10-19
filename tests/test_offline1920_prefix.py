@@ -6,7 +6,7 @@ import pytest
 ROOT=Path(__file__).resolve().parents[1]
 
 def load():
-    path=ROOT/'midtraining/offline2b/prefix/contract.py'
+    path=ROOT/'midtraining/training/offline_kd/prefix/contract.py'
     assert path.exists(), 'prefix contract implementation missing'
     spec=importlib.util.spec_from_file_location('prefix_contract',path)
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
@@ -41,7 +41,7 @@ def test_closed_tar_ownership_rejects_wrong_iteration(tmp_path):
 
 def test_chart_requires_all_eight_rank_updates(tmp_path):
     import json
-    path=ROOT/'midtraining/offline2b/prefix/charts/render.py'
+    path=ROOT/'midtraining/training/offline_kd/prefix/charts/render.py'
     assert path.exists(), 'real-metric chart renderer missing'
     spec=importlib.util.spec_from_file_location('prefix_chart',path)
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
@@ -59,7 +59,7 @@ def test_chart_requires_all_eight_rank_updates(tmp_path):
 
 def test_continuation_preserves_cursor_and_validation_capacity():
     import json
-    path=ROOT/'midtraining/offline2b/prefix/continuation/contract.py'
+    path=ROOT/'midtraining/training/offline_kd/prefix/continuation/contract.py'
     assert path.exists(), 'continuation contract missing'
     spec=importlib.util.spec_from_file_location('continuation_contract',path)
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
@@ -73,7 +73,7 @@ def test_continuation_preserves_cursor_and_validation_capacity():
 
 
 def test_resume_compiler_cache_never_copies_absolute_old_paths(tmp_path):
-    path=ROOT/'midtraining/offline2b/prefix/continuation02/contract.py'
+    path=ROOT/'midtraining/training/offline_kd/prefix/continuation02/contract.py'
     assert path.exists(), 'fresh-cache recovery contract missing'
     spec=importlib.util.spec_from_file_location('recovery_contract',path)
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)

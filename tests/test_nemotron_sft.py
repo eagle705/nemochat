@@ -175,16 +175,16 @@ def test_official_template_instrumentation_exact_render_ids_selected_spans():
 def test_data_cli_help_is_real_entrypoint():
     import subprocess
     import sys
-    result = subprocess.run([sys.executable, 'scripts/posttraining/nemotron_sft.py', '--help'], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, 'sft/data/nemotron_sft.py', '--help'], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     assert all(command in result.stdout for command in ['discover', 'acquire', 'prepare'])
 
 
 def test_native_plan_rejects_base_and_old_format_without_loading_weights():
     import runpy
-    native = runpy.run_path('scripts/posttraining/native_nemotron_sft.py')
+    native = runpy.run_path('sft/training/native_nemotron_sft.py')
     import yaml
-    config = yaml.safe_load(Path('configs/posttraining/nemochat_baby_nemotron_sft.yaml').read_text())
+    config = yaml.safe_load(Path('sft/configs/nemochat_baby_nemotron_sft.yaml').read_text())
     manifest = dict(status='passed',schema='nemochat-nemotron-sft-v1',
                     format='official-super35-selected-assistant-v1',sequence_length=4096,
                     train_dialogues=96,heldout_dialogues=8,train_heldout_overlap=0,
@@ -205,7 +205,7 @@ def test_native_plan_rejects_base_and_old_format_without_loading_weights():
 
 def test_launch_payload_is_inert_distinct_all8_and_offline_by_default():
     import runpy
-    launch = runpy.run_path('scripts/posttraining/launch_nemotron_sft.py')
+    launch = runpy.run_path('sft/training/launch_nemotron_sft.py')
     payload = launch['make_payload']('pilot-control-01', Path('datasets/pilot/manifest.json'), pilot=True)
     assert payload['HostConfig']['DeviceRequests'][0]['DeviceIDs'] == list(map(str,range(8)))
     assert payload['HostConfig']['NetworkMode'] == 'none'
@@ -219,7 +219,7 @@ def test_launch_payload_is_inert_distinct_all8_and_offline_by_default():
 
 def test_verify_inputs_rejects_forged_pass_without_all_five_pinned_sources(tmp_path):
     import runpy
-    native = runpy.run_path('scripts/posttraining/native_nemotron_sft.py')
+    native = runpy.run_path('sft/training/native_nemotron_sft.py')
     migration = dict(status='passed',vocab_size=131072,allowed_changed_ids=list(range(18,30)),
         new_revision='new',tokenizer_path='local',datasetReservedCounts={name:dict(status='passed',stored_counts={})
         for name in ('climbmix_train','climbmix_validation','climbmix_calibration','existing_sft_train','existing_sft_heldout')})

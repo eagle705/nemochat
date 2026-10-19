@@ -6,7 +6,7 @@ Gym checkout 자체에서 실행할 때는 `NEMOCHAT_ROOT=/absolute/path/to/nemo
 
 ## 구현 범위와 실제 결과
 
-`scripts/gym_eval.py`는 **공식 Gym 결과를 가져와 raw/WSM merged 체크포인트를 비교하는 도구**입니다. 새 scorer를 구현하거나 Gym 결과를 임의로 대체하지 않습니다. 모델·judge API 호출, 데이터 다운로드, upstream 준비 스크립트 실행도 하지 않습니다. 기존 `scripts/base_eval.py`의 CE/BPB 및 CORE 진단은 그대로 유지합니다. 생성 벤치마크와 다음 토큰 손실은 서로 다른 관측이므로 함께 보아야 합니다.
+`rl/evaluation/gym_eval.py`는 **공식 Gym 결과를 가져와 raw/WSM merged 체크포인트를 비교하는 도구**입니다. 새 scorer를 구현하거나 Gym 결과를 임의로 대체하지 않습니다. 모델·judge API 호출, 데이터 다운로드, upstream 준비 스크립트 실행도 하지 않습니다. 기존 `scripts/base_eval.py`의 CE/BPB 및 CORE 진단은 그대로 유지합니다. 생성 벤치마크와 다음 토큰 손실은 서로 다른 관측이므로 함께 보아야 합니다.
 
 공식 저장소는 **NVIDIA-NeMo/Gym**, 고정 revision은 `804c12a7d56a151a98ae150a352350e3c856ba47`입니다. `NVIDIA/NeMo-Gym`이 아닙니다. 자세한 immutable source 링크, manifest 예제, 실행 계약은 [영문 문서](../en/GYM_PRETRAIN_EVALUATION.md)에 있습니다.
 
@@ -45,7 +45,7 @@ NemoChat training checkpoint를 해당 vLLM 버전이 실제 지원하는 model/
 
 ## Manifest 작성과 비교
 
-`configs/eval/gym_pretrain.json`은 runs가 비어 있는 **미측정 템플릿**입니다. 그대로 실행하면 실패해야 정상입니다. 실제 결과가 생긴 후 각 `checkpoint_step × task × variant(raw/merged)`에 한 record를 작성합니다. 필드는 영문 문서의 JSON 예제를 따릅니다.
+`rl/configs/gym_pretrain.json`은 runs가 비어 있는 **미측정 템플릿**입니다. 그대로 실행하면 실패해야 정상입니다. 실제 결과가 생긴 후 각 `checkpoint_step × task × variant(raw/merged)`에 한 record를 작성합니다. 필드는 영문 문서의 JSON 예제를 따릅니다.
 
 - `checkpoint`: 실제 weight 파일 또는 모든 shard hash를 포함한 canonical inventory 파일.
 - `tokenizer`: tokenizer와 special-token/config 파일 전체를 식별하는 파일 또는 inventory.
@@ -58,7 +58,7 @@ NemoChat training checkpoint를 해당 vLLM 버전이 실제 지원하는 model/
 `protocol.json`에는 `generation`, `context_length`, `prompt_mode`, `scorer`, `scope`, `runtime`, `wsm`을 기록합니다. 생성 seed/temperature/top-p/output·stop 한도, context/BOS/truncation, precision 및 runtime version을 빠짐없이 기록합니다. `wsm`은 두 arm이 공유하는 merge policy이며 window, 구성 체크포인트 hash, 정규화된 coefficient, 미래 checkpoint 미사용 cutoff를 명시합니다. 실제 merge를 적용하는 것은 merged arm뿐이지만 비교 provenance는 두 arm에 공유합니다.
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/gym_eval.py \
+PYTHONPATH=src .venv/bin/python rl/evaluation/gym_eval.py \
   --manifest results/gym/my-run/manifest.json \
   --gym-root /absolute/pinned/Gym \
   --output results/gym/my-run/gym_comparison.json

@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def controller():
-    path = ROOT / 'midtraining/run_production.py'
+    path = ROOT / 'midtraining/training/run_production.py'
     assert path.exists(), 'contingent production controller is missing'
     spec = importlib.util.spec_from_file_location('production_controller_test', path)
     m = importlib.util.module_from_spec(spec)
@@ -35,7 +35,7 @@ def test_source_freeze_is_exact_separate_and_detects_changes(tmp_path):
 
 def test_supervisor_checks_uid_pid_and_full_argv():
     m = controller()
-    argv = ['/python', '/repo/midtraining/run_production.py', '--execute']
+    argv = ['/python', '/repo/midtraining/training/run_production.py', '--execute']
     info = {'MainPID': str(os.getpid()), 'ActiveState': 'activating',
             'SubState': 'start', 'User': str(os.getuid())}
     m.check_supervisor(info, os.getpid(), os.getuid(), argv, argv)
@@ -49,7 +49,7 @@ def test_supervisor_checks_uid_pid_and_full_argv():
 
 def test_user_manager_default_credentials_keep_exact_pid_and_argv_guards():
     m = controller()
-    argv = ['/python', '/repo/midtraining/run_production.py', '--execute']
+    argv = ['/python', '/repo/midtraining/training/run_production.py', '--execute']
     info = {'MainPID': str(os.getpid()), 'ActiveState': 'active', 'User': ''}
     m.check_supervisor(info, os.getpid(), os.getuid(), argv, argv)
     with pytest.raises(ValueError, match='supervisor'):
@@ -60,9 +60,9 @@ def test_user_manager_default_credentials_keep_exact_pid_and_argv_guards():
 
 def test_same_recipe_comparison_allows_only_intentional_differences():
     m = controller()
-    native = m.load('test_native_recipe', 'midtraining/longrun_native.py')
-    old = native.load_config(ROOT/'midtraining/calibration.yaml')
-    new = native.load_config(ROOT/'midtraining/longrun24h.yaml')
+    native = m.load('test_native_recipe', 'midtraining/training/longrun_native.py')
+    old = native.load_config(ROOT/'midtraining/configs/calibration.yaml')
+    new = native.load_config(ROOT/'midtraining/configs/longrun24h.yaml')
     m.compare_recipe(old, new)
     for section in ('optimizer', 'ddp', 'parallel', 'kd', 'rng', 'checkpoint'):
         bad = copy.deepcopy(new)
@@ -104,7 +104,7 @@ def test_preserve_whole_heldout_and_validation_digests(tmp_path):
 
 def test_data_validation_calls_native_gates_and_derives_exact_compatibility(tmp_path, monkeypatch):
     m = controller()
-    n = m.load('test_real_native_capacity', 'midtraining/longrun_native.py')
+    n = m.load('test_real_native_capacity', 'midtraining/training/longrun_native.py')
     calls = []
     seed = {'tokenizer': {'synthetic': True}, 'sources': {}}
     production = copy.deepcopy(seed)
@@ -123,8 +123,8 @@ def test_data_validation_calls_native_gates_and_derives_exact_compatibility(tmp_
         path = tmp_path/relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(value))
-    old = n.load_config(ROOT/'midtraining/calibration.yaml')
-    new = n.load_config(ROOT/'midtraining/longrun24h.yaml')
+    old = n.load_config(ROOT/'midtraining/configs/calibration.yaml')
+    new = n.load_config(ROOT/'midtraining/configs/longrun24h.yaml')
     cfg = tmp_path/(m.BASE+'super35-newdata-calibration-01/consumed-config.yaml')
     cfg.write_text('synthetic config')
     frozen = cfg.parent/'controller/frozen-inputs.json'
@@ -268,11 +268,11 @@ def test_cli_preview_and_help_are_inert_and_forward_exact_command(tmp_path):
     import sys
     m = controller()
     for args in ([], ['--preview'], ['--help']):
-        result = subprocess.run([sys.executable, str(ROOT/'midtraining/run_production.py'), *args],
+        result = subprocess.run([sys.executable, str(ROOT/'midtraining/training/run_production.py'), *args],
                                 cwd=tmp_path, capture_output=True, text=True, check=True)
         assert result.stdout
     preview = json.loads(subprocess.check_output([sys.executable,
-        str(ROOT/'midtraining/run_production.py'), '--preview'], cwd=tmp_path, text=True))
+        str(ROOT/'midtraining/training/run_production.py'), '--preview'], cwd=tmp_path, text=True))
     assert preview['status'] == 'inert_preview'
     assert preview['unit'] == m.UNIT
     command = m.main_command(tmp_path/'compatibility.json')
@@ -377,7 +377,7 @@ def test_supervisor_argv_has_exact_bounds_cleanup_and_env():
     stop = next(x for x in command if x.startswith('--property=ExecStopPost='))
     assert '--cleanup-owned' in stop and 'startup-review.json' in stop
     assert '--setenv=NEMOCHAT_PRODUCTION_SUPERVISED=1' in command
-    assert command[-4:] == [str(ROOT/'midtraining/run_production.py'), '--execute',
+    assert command[-4:] == [str(ROOT/'midtraining/training/run_production.py'), '--execute',
                            '--reviewed-sources', str(ROOT/'startup-review.json')]
 
 
@@ -385,7 +385,7 @@ def test_supervisor_gate_rejects_foreign_interpreter(tmp_path, monkeypatch):
     import sys
     m = controller()
     proc = tmp_path/str(os.getpid()); proc.mkdir()
-    script = str(ROOT/'midtraining/run_production.py')
+    script = str(ROOT/'midtraining/training/run_production.py')
     (proc/'cmdline').write_bytes(('foreign-python\0'+script+'\0--execute\0').encode())
     real_path = Path
     monkeypatch.setattr(m, 'Path', lambda *a: real_path(tmp_path) if a == ('/proc',) else real_path(*a))

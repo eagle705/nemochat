@@ -8,7 +8,7 @@ from nemochat.data.nemotron_sft import PINS, pinned_sources
 import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_CONFIG = ROOT / 'configs/posttraining/nemotron_dataset_settings.yaml'
+DEFAULT_CONFIG = ROOT / 'sft/configs/nemotron_dataset_settings.yaml'
 
 
 def load_settings(path=DEFAULT_CONFIG):
@@ -189,7 +189,7 @@ def compile_plan(settings, stage='current_sft', *, raw=None, output=None, root=R
         sources = pinned_sources(repository_path(settings['discovery'], root=root))
         row_upper_bound = max(source['expected_bytes'] for source in sources) + 1
         prep = settings['preparation']
-        argv = [sys.executable, str(root/'scripts/posttraining/nemotron_sft.py'), 'prepare',
+        argv = [sys.executable, str(root/'sft/data/nemotron_sft.py'), 'prepare',
                 '--raw', str(raw_path), '--output', str(output_path),
                 '--tokenizer-manifest', str(repository_path(settings['tokenizer']['manifest'], root=root)),
                 '--kmmlu-exclusions', str(repository_path(prep['kmmlu_exclusions'], root=root)),

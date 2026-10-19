@@ -115,17 +115,17 @@ BASE 패키지는 실제 사전학습 lineage를 설명하도록 **기존 토크
 
 | 예정 entrypoint | 목적 | 관련 계약 |
 |---|---|---|
-| `scripts/posttraining/prepare_tokenizer.py` | 소스 pin, backend 호환성, 기존-ID 검사, migration 아티팩트 | `configs/tokenizers/nemotron_super35.yaml`; `src/nemochat/tokenization/posttraining.py` |
-| `scripts/posttraining/nemotron_sft.py` | 제한된 소스 준비와 선택-turn/token 집계 | `configs/posttraining/nemochat_baby_nemotron_sft.yaml`; `src/nemochat/data/nemotron_sft.py` |
-| `scripts/posttraining/publish_hf_base.py` | 별도 비공개 PRETRAIN BASE 패키징/게시 | `src/nemochat/hub/base_checkpoint.py` |
+| `sft/data/prepare_tokenizer.py` | 소스 pin, backend 호환성, 기존-ID 검사, migration 아티팩트 | `sft/configs/tokenizer_super35.yaml`; `src/nemochat/tokenization/posttraining.py` |
+| `sft/data/nemotron_sft.py` | 제한된 소스 준비와 선택-turn/token 집계 | `sft/configs/nemochat_baby_nemotron_sft.yaml`; `src/nemochat/data/nemotron_sft.py` |
+| `pretraining/publication/publish_hf_base.py` | 별도 비공개 PRETRAIN BASE 패키징/게시 | `src/nemochat/hub/base_checkpoint.py` |
 
 10:16 KST에 스크립트 세 개와 해당 config는 아직 없어 `--help` 성공이나 subcommand/flag 이름을 주장하지 않는다. 토크나이저 모듈은 작성 중이었으며 파일 존재만으로 전체 CLI 준비가 입증되지는 않는다. 작업 명령을 만들기 전에 아래 비파괴적 존재/help 검사를 사용한다. 이 검사는 **데이터 준비, GPU 학습, 업로드를 하지 않는다**.
 
 ```bash
 for entry in \
-  scripts/posttraining/prepare_tokenizer.py \
-  scripts/posttraining/nemotron_sft.py \
-  scripts/posttraining/publish_hf_base.py
+  sft/data/prepare_tokenizer.py \
+  sft/data/nemotron_sft.py \
+  pretraining/publication/publish_hf_base.py
 do
   if test -f "$entry"; then
     .venv/bin/python "$entry" --help
@@ -135,7 +135,7 @@ do
 done
 ```
 
-**준비 상태 갱신, 2026-10-17 10:21 KST:** `scripts/posttraining/prepare_tokenizer.py`와 `configs/tokenizers/nemotron_super35.yaml`이 생성됐다. 문서 worker가 `.venv/bin/python scripts/posttraining/prepare_tokenizer.py --help`를 실제 실행해 exit 0을 확인했다. Positional stage `download`, `audit`, `verify-runtime`, `publish`와 `--config`를 제공한다. 여기의 `publish`는 HF 가중치 업로드가 아니라 **로컬 tokenizer migration manifest 작성**이다. 소스가 안내하는 순서는 위와 같다. `verify-runtime`은 호환 native SDK CPU runtime에서 실행해야 하며 비호환 호스트에서 수행하지 않는다. 문서 worker는 이 네 단계를 실행하지 않았고, 준비 상태 확인 시 migration manifest는 여전히 없었다. SFT와 BASE 게시 CLI는 아직 없어 flag를 명시하지 않는다.
+**준비 상태 갱신, 2026-10-17 10:21 KST:** `sft/data/prepare_tokenizer.py`와 `sft/configs/tokenizer_super35.yaml`이 생성됐다. 문서 worker가 `.venv/bin/python sft/data/prepare_tokenizer.py --help`를 실제 실행해 exit 0을 확인했다. Positional stage `download`, `audit`, `verify-runtime`, `publish`와 `--config`를 제공한다. 여기의 `publish`는 HF 가중치 업로드가 아니라 **로컬 tokenizer migration manifest 작성**이다. 소스가 안내하는 순서는 위와 같다. `verify-runtime`은 호환 native SDK CPU runtime에서 실행해야 하며 비호환 호스트에서 수행하지 않는다. 문서 worker는 이 네 단계를 실행하지 않았고, 준비 상태 확인 시 migration manifest는 여전히 없었다. SFT와 BASE 게시 CLI는 아직 없어 flag를 명시하지 않는다.
 
 파일명만 보고 준비/학습/업로드 option을 추측하지 않는다. Code worker가 CLI를 제공하면 실제 `--help`를 저장하고 지원 flag만 사용하며 정확히 승인·실행된 명령과 영수증을 여기에 추가한다. Native launch에는 호환 SDK와 parent의 GPU 승인/gate가 추가로 필요하다. 이 문서에서 실행 명령을 만들어내지 않는다.
 
@@ -156,9 +156,9 @@ done
 재검증/실행 CLI (repo root):
 
 ```bash
-.venv/bin/python scripts/posttraining/publish_hf_base.py verify \
+.venv/bin/python pretraining/publication/publish_hf_base.py verify \
   --revision 94422e79dd31ede40e52a9940367115b690d5048
-.venv/bin/python scripts/posttraining/launch_nemotron_sft.py \
+.venv/bin/python sft/training/launch_nemotron_sft.py \
   --name nemotron-pilot-01 \
   --manifest datasets/nemotron_sft/nemochat_baby/prepared-pilot-01/data/manifest.json \
   --pilot --online --run-id nemochat-baby-nemotron-sft-pilot-01 --execute

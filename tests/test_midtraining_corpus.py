@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / 'midtraining/prepare_corpus.py'
+SCRIPT = ROOT / 'midtraining/data/prepare_corpus.py'
 
 
 def module():
@@ -256,7 +256,7 @@ def test_parent_review_and_complete_original_reservation_are_required(tmp_path):
         mod.verify_review(config, {'approved': False})
     review = {'approved': True, 'all_intended_benchmarks_registered': True,
               'files': {str(p.relative_to(ROOT)): mod.file_digest(p)
-                        for p in [SCRIPT, ROOT/'midtraining/corpus.yaml', mod.SDK_PATH]},
+                        for p in [SCRIPT, ROOT/'midtraining/configs/corpus.yaml', mod.SDK_PATH]},
               'benchmark_manifests': [{'path': config['policy']['kmmlu_path'],
                   'sha256': mod.file_digest(ROOT/config['policy']['kmmlu_path']), 'count': 34871}]}
     proof = mod.verify_review(config, review)
@@ -265,7 +265,7 @@ def test_parent_review_and_complete_original_reservation_are_required(tmp_path):
     changed = dict(review, all_intended_benchmarks_registered=False)
     with pytest.raises(ValueError, match='benchmark'):
         mod.verify_review(config, changed)
-    review['files']['midtraining/prepare_corpus.py'] = '0'*64
+    review['files']['midtraining/data/prepare_corpus.py'] = '0'*64
     with pytest.raises(ValueError, match='source'):
         mod.verify_review(config, review)
     command = subprocess.run([sys.executable, str(SCRIPT), '--execute', '--output', str(tmp_path/'must-not-exist')],

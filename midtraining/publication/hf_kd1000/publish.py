@@ -306,7 +306,7 @@ def inventory():
 
 
 def credential():
-    spec=importlib.util.spec_from_file_location('existing_credential',ROOT/'scripts/posttraining/replace_hf_base_transformers.py')
+    spec=importlib.util.spec_from_file_location('existing_credential',ROOT/'pretraining/publication/replace_hf_base_transformers.py')
     value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
     return value.credential()
 

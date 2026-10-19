@@ -10,7 +10,7 @@ sys.path.insert(0,str(PATCH))
 
 
 def module(name):
-    spec=importlib.util.spec_from_file_location('offline2b_'+name,ROOT/'midtraining/offline2b'/f'{name}.py')
+    spec=importlib.util.spec_from_file_location('offline2b_'+name,ROOT/'midtraining/training/offline_kd'/f'{name}.py')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 
 
@@ -76,7 +76,7 @@ def test_production_start_requires_parent_review_before_any_side_effect(tmp_path
     import subprocess
     output=ROOT/'results/midtraining/offline2b-never-created-test'
     assert not output.exists()
-    result=subprocess.run([sys.executable,str(ROOT/'midtraining/offline2b/launch.py'),
+    result=subprocess.run([sys.executable,str(ROOT/'midtraining/training/offline_kd/launch.py'),
         '--mode','production','--output',str(output),'--start'],capture_output=True,text=True)
     assert result.returncode!=0 and 'parent production review' in result.stderr
     assert not output.exists()

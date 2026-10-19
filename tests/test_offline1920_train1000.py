@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 ROOT=Path(__file__).resolve().parents[1]
-HERE=ROOT/'midtraining/offline2b/prefix/dynamic/train1000'
+HERE=ROOT/'midtraining/training/offline_kd/prefix/dynamic/train1000'
 class Train1000(unittest.TestCase):
     def test_bounded_cap_keeps_unconsumed_lookahead_and_history(self):
         self.assertTrue((HERE/'broker.py').exists(), 'fresh capped broker missing')
@@ -31,7 +31,7 @@ class Train1000(unittest.TestCase):
     def test_source_digest_rejection_records_indices_and_structural_errors_stay_fatal(self):
         import sys
         sys.path.insert(0,str(ROOT))
-        from midtraining.offline2b.prefix.dynamic.train1000 import reader,broker
+        from midtraining.training.offline_kd.prefix.dynamic.train1000 import reader,broker
         self.assertTrue(hasattr(reader,'validate_source_digest'),'pre-forward source digest policy missing')
         expected=dict(micro=18*16+3,iteration=18,rank=4,sha256='a'*64,masked_tokens=4096)
         with self.assertRaises(broker.CacheRejected) as rejected:

@@ -100,7 +100,7 @@ def test_prepare_cli_exposes_explicit_stages():
     import subprocess
     from pathlib import Path
     import sys
-    script = Path('scripts/posttraining/prepare_tokenizer.py')
+    script = Path('sft/data/prepare_tokenizer.py')
     assert script.exists(), 'versioned migration CLI missing'
     result = subprocess.run([sys.executable, str(script), '--help'], capture_output=True, text=True)
     assert result.returncode == 0
@@ -111,7 +111,7 @@ def test_prepare_cli_exposes_explicit_stages():
 def test_old_template_can_be_embedded_in_tokenizer_config(tmp_path):
     import importlib.util
     import json
-    spec = importlib.util.spec_from_file_location('prepare_tokenizer', 'scripts/posttraining/prepare_tokenizer.py')
+    spec = importlib.util.spec_from_file_location('prepare_tokenizer', 'sft/data/prepare_tokenizer.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     (tmp_path / 'tokenizer_config.json').write_text(json.dumps({'chat_template': 'embedded official'}))
@@ -123,7 +123,7 @@ def test_old_template_can_be_embedded_in_tokenizer_config(tmp_path):
 
 def test_official_old_download_must_match_cache_before_acceptance(tmp_path):
     import importlib.util
-    spec = importlib.util.spec_from_file_location('prepare_tokenizer', 'scripts/posttraining/prepare_tokenizer.py')
+    spec = importlib.util.spec_from_file_location('prepare_tokenizer', 'sft/data/prepare_tokenizer.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     cache, official = tmp_path / 'cache', tmp_path / 'official'

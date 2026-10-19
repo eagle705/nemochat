@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def module():
-    path = ROOT / 'midtraining/offline2b/prepare.py'
+    path = ROOT / 'midtraining/data/offline_kd/prepare.py'
     assert path.is_file(), 'new independent producer is required'
     spec = importlib.util.spec_from_file_location('offline2b_prepare', path)
     m = importlib.util.module_from_spec(spec)
@@ -79,7 +79,7 @@ def test_capacity_report_refuses_manifest_for_any_source_shortfall():
 
 def test_cli_preview_is_inert():
     import subprocess, json, sys
-    proc = subprocess.run([sys.executable,str(ROOT/'midtraining/offline2b/prepare.py'),'--preview'],
+    proc = subprocess.run([sys.executable,str(ROOT/'midtraining/data/offline_kd/prepare.py'),'--preview'],
                           capture_output=True,text=True,check=True)
     assert proc.stdout, 'preview must emit the actual independent budget'
     out = json.loads(proc.stdout)
@@ -136,7 +136,7 @@ def test_census_preserves_reserved_token_documents_in_tail():
     class Tokenizer:
         def encode(self,text,**kw):
             return [100]
-    p = m.helper('midtraining/recover_corpus.py').producer()
+    p = m.helper('midtraining/data/recover_corpus.py').producer()
     out = m.census_source(db,'formal_logic',[],Tokenizer(),{p.token_digest([100,11])},set(),set(),100)
     assert out['tokens'] == 0
     assert out['heldout_token_documents_skipped'] == 1
@@ -174,7 +174,7 @@ def test_source_alias_gate_remains_blocked_even_with_sufficient_safe_capacity():
 
 def test_original_replay_readback_preserves_known_upstream_clipping(tmp_path):
     m = module()
-    p = m.helper('midtraining/recover_corpus.py').producer()
+    p = m.helper('midtraining/data/recover_corpus.py').producer()
     writer = p.NativeWriter(tmp_path/'corpus',11,131072)
     writer.append([100,101,11])
     entry = writer.publish()

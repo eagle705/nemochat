@@ -7,7 +7,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 def load(name):
-    spec = importlib.util.spec_from_file_location('offline1920_' + name, ROOT / 'midtraining/offline2b' / (name + '.py'))
+    spec = importlib.util.spec_from_file_location('offline1920_' + name, ROOT / 'midtraining/training/offline_kd' / (name + '.py'))
     obj = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(obj)
     return obj
@@ -29,7 +29,7 @@ def test_approved_profile_cli_still_requires_parent_review():
     import subprocess
     output = ROOT / 'results/midtraining/offline2b-never-created-approved1920'
     assert not output.exists()
-    completed = subprocess.run([sys.executable, str(ROOT / 'midtraining/offline2b/launch.py'),
+    completed = subprocess.run([sys.executable, str(ROOT / 'midtraining/training/offline_kd/launch.py'),
         '--mode', 'production1920', '--output', str(output), '--start'],
         capture_output=True, text=True)
     assert completed.returncode != 0
@@ -74,7 +74,7 @@ def test_budget_only_gate_compatibility_keeps_native_model_loss_sources_pinned()
     assert hasattr(launch, 'validate_gate_review'), 'budget-only parent compatibility validation is missing'
     launch.validate_gate_review(review, gate, 'production1920')
     broken = copy.deepcopy(review)
-    broken['source_sha256']['midtraining/offline2b/native.py'] = '0' * 64
+    broken['source_sha256']['midtraining/training/offline_kd/native.py'] = '0' * 64
     with pytest.raises(ValueError, match='native|source'):
         launch.validate_gate_review(broken, gate, 'production1920')
     broken = copy.deepcopy(review)

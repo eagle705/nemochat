@@ -72,7 +72,7 @@
 - `student-rank{0..7}-updates.jsonl`을 다시 읽어 각 rank에 정확히 calls 1–64가 있는지, LR·Loss·Grad Norm·Skipped 상태를 검증했다.
 - 최초 **1,024 microbatches/rank**, 총 **8,192개 microbatch digest rows**를 원래 teacher의 같은 source iteration/rank와 다시 대조했다. Tokens·labels·loss mask·position IDs를 묶은 실제 기록이 모두 일치했다. 이 8,192개는 위의 global samples 8,192개와 **서로 다른 집계 단위**다.
 - Native synchronous checkpoint save의 8-rank transaction이 같은 `next_iteration=64`, `consumed_samples=8192` 및 cache/sampler binding을 확인한다.
-- 저장 위치: [`results/midtraining/offline2b-prefixtrain-01/checkpoint/iter_0000064/`](../../results/midtraining/offline2b-prefixtrain-01/checkpoint/iter_0000064/).
+- 저장 위치: [`results/midtraining/offline2b-prefixtrain-01/checkpoint/iter_0000064/`](../../results/midtraining/offline2b-prefixtrain-01/checkpoint/iter_0000064).
 - Model·optimizer·RNG 저장이 기록되어 있다. 이후 별도 continuation에서 8-rank step64 복원 및 후속 update가 실제 관측되었지만, **그 수치는 이 보고서 그래프에 포함하지 않았다**.
 - 사용자 면제에 따라 **model/optimizer checkpoint payload SHA·CRC 감사는 하지 않았다**: `not_checked_explicit_user_waiver`. 문서용 로그·그림 SHA 검증과 혼동하지 않는다. 이 문서 작성 중 checkpoint를 다시 로드하거나 모델을 실행하지 않았다.
 

@@ -21,7 +21,7 @@ def publish(name,value):
     print(name,json.dumps(value,allow_nan=False),flush=True)
 
 def kd_helpers():
-    spec=importlib.util.spec_from_file_location('accepted_native_kd',ROOT/'midtraining/native_kd.py')
+    spec=importlib.util.spec_from_file_location('accepted_native_kd',ROOT/'midtraining/training/native_kd.py')
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     return module
 

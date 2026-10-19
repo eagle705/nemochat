@@ -1,6 +1,6 @@
 # Training systems lab — execution and review evidence
 
-Latest status: reviewed CPU/offline control scope. Historical pending notes below refer to earlier snapshots; [final whole-source review](../en/WHOLE_REPOSITORY_REVIEW.md) records repaired descriptors, fresh execution and independent approval. Native GPU/distributed/target-quality gates remain unverified.
+Latest status: reviewed CPU/offline control scope. Historical pending notes below refer to earlier snapshots; [final whole-source review](WHOLE_REPOSITORY_REVIEW.md) records repaired descriptors, fresh execution and independent approval. Native GPU/distributed/target-quality gates remain unverified.
 
 ## Scope
 

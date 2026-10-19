@@ -15,7 +15,8 @@ NemoChat is a noncommercial educational NVIDIA SDK tutorial for a small Nemotron
 
 ## Repository map
 
-- `scripts/`: direct runnable entry points; inspect `--help` before constructing commands.
+- `pretraining/`, `midtraining/`, `sft/`, `rl/`: stage-owned entrypoints/configs/docs. Midtraining is KD/continued-pretraining only; SFT must never be nested inside it.
+- `scripts/`: cross-stage runnable utilities; inspect `--help` before constructing commands.
 - `src/nemochat/`: data preparation, diagnostics/evaluation, models, training controls, long-context probes, checkpoint tooling, planning, artifact transport and tracking.
 - `tests/`: regression tests and clearly labeled synthetic/handwritten fixtures.
 - `configs/`: versionable experiment/tool configurations; no credentials.
@@ -80,3 +81,7 @@ git diff --check
 Inspect all changed/untracked source and docs; `git diff --check` alone does not cover untracked files. Verify relevant CLI examples and local links, and exercise optional upstream integration in its compatible runtime instead of calling a skipped test validated.
 
 Before handing off, update `NemoChatAgent.md`'s ledger and append execution evidence, exact commands, scope, artifact paths and remaining gates. Do not erase historical records. A subagent report or timeout is not a verdict: inspect artifacts and independently verify important results.
+
+## Canonical stage-owned source (2026-10-19)
+
+`pretraining/`, `midtraining/` (KD/continued pretraining only), `sft/`, `rl/` own stage source/configs/entrypoints. `datasets/` and `checkpoints/` remain payload-only. See [stage-layout mapping](docs/en/STAGE_LAYOUT.md) and its original-blob manifest. Prior run paths in append-only journals are historical, not current source entrypoints. No operational RL trainer is claimed; native payloads and evidence remain in their original locations.

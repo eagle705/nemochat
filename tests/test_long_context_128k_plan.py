@@ -4,7 +4,7 @@ import yaml
 
 
 def test_deferred_long_stage_is_128k_and_cannot_start_current_training():
-    path = Path('configs/posttraining/nemochat_baby_long_context_128k.plan.yaml')
+    path = Path('sft/configs/nemochat_baby_long_context_128k.plan.yaml')
     assert path.is_file(), 'Missing separately scoped128K long-context stage plan'
     c = yaml.safe_load(path.read_text())
     assert c['schema'] == 'nemochat-deferred-long-context-plan-v1'
@@ -17,7 +17,7 @@ def test_deferred_long_stage_is_128k_and_cannot_start_current_training():
 
 
 def test_long_stage_uses_conservative_cp_and_requires_real_memory_proof():
-    c = yaml.safe_load(Path('configs/posttraining/nemochat_baby_long_context_128k.plan.yaml').read_text())
+    c = yaml.safe_load(Path('sft/configs/nemochat_baby_long_context_128k.plan.yaml').read_text())
     p = c['parallelism_plan']
     assert p['initial_context_parallel_size'] == 8
     assert p['candidate_context_parallel_sizes'] == [8, 4, 2]

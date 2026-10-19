@@ -30,7 +30,7 @@ This repository currently implements readable **Part I CPU-first building blocks
 | Training systems lab | Strict YAML runner, offline dense full-update control, separate profiler capture, compatible A/B and linear forward/backward estimates | CUDA/Nsight execution, measured DRAM roofline, native hybrid/distributed integration and default-adoption gates |
 | WSM checkpoint merge | Pinned official Megatron PR #5114 launcher; actual CPU synthetic DCP merge and independent value checks | Actual NemoChat hybrid checkpoint reload/export or benchmark improvement |
 | NeMo Gym results | Pinned official-result importer and raw/merged comparison with compatibility checks | Official benchmark execution against a NemoChat model; no measured target-model scores |
-| Stages [5][6][7] | Documented design and artifact contracts | SFT/RLVR/MOPD implementation |
+| Later stages | Native SFT905→1248 history and stage-owned source; RLVR/MOPD design contracts | Portable RLVR/MOPD trainers; relocated native source requalification |
 
 There is intentionally no generic trainer/plugin/backend registry. Start at a script, then read its small module. English code/docstrings; separate [Korean walkthrough](docs/ko/CPU_IMPLEMENTATION.md).
 
@@ -104,7 +104,7 @@ Bridge/Core/Transformer Engine are **not** installed in this CPU environment. Ke
 
 ## Future work
 
-- **Teacher-assisted midtraining with Megatron Bridge:** the user selected completed WSD BASE → a new LM+logits-KD midtraining schedule → SFT. Implementation, native YAML, isolated compatibility patches and acceptance gates are in [`midtraining/`](midtraining/README.md) ([한국어](midtraining/README.ko.md)). The teacher is the pinned **Nemotron 3.5 Super VL Base**, not Instruct. Native LM+KD update/save/teacher-free reload passed on the existing-ClimbMix operational control; see [executed verification](midtraining/VERIFICATION.md) ([한국어](midtraining/VERIFICATION.ko.md)). The newly selected Specialized corpus and production run are separately gated. Completed BASE pretraining remains LM-only. The [earlier proposal](docs/en/PRETRAIN_DISTILLATION_FUTURE_WORK.md) is retained as historical planning.
+- **Teacher-assisted midtraining with Megatron Bridge:** the user selected completed WSD BASE → a new LM+logits-KD midtraining schedule → SFT. Implementation, native YAML, isolated compatibility patches and acceptance gates are in [`midtraining/`](midtraining/README.md) ([한국어](midtraining/README.ko.md)). The teacher is the pinned **Nemotron 3.5 Super VL Base**, not Instruct. Native LM+KD update/save/teacher-free reload passed on the existing-ClimbMix operational control; see [executed verification](midtraining/docs/VERIFICATION.md) ([한국어](midtraining/docs/VERIFICATION.ko.md)). The newly selected Specialized corpus and production run are separately gated. Completed BASE pretraining remains LM-only. The [earlier proposal](docs/en/PRETRAIN_DISTILLATION_FUTURE_WORK.md) is retained as historical planning.
 
 ## Read in this order
 
@@ -236,7 +236,7 @@ A separate [inference performance track](docs/en/INFERENCE_PERFORMANCE_TRACK.md)
 
 ## NeMo Gym benchmark results
 
-`scripts/gym_eval.py` is currently a **saved official-result importer/comparator**, not a benchmark runner. It checks paired raw/merged protocols and imports existing official scores without calling a model or judge. `configs/eval/gym_pretrain.json` is an unmeasured manifest template, not a ready-to-run scored benchmark. The official Gym environment, real checkpoint export and serving endpoint are separate prerequisites.
+`rl/evaluation/gym_eval.py` is currently a **saved official-result importer/comparator**, not a benchmark runner. It checks paired raw/merged protocols and imports existing official scores without calling a model or judge. `rl/configs/gym_pretrain.json` is an unmeasured manifest template, not a ready-to-run scored benchmark. The official Gym environment, real checkpoint export and serving endpoint are separate prerequisites.
 
 See [Gym preparation, official commands and comparison contract](docs/en/GYM_PRETRAIN_EVALUATION.md) ([Korean explanation](docs/ko/GYM_PRETRAIN_EVALUATION.md)). Do not label synthetic importer fixtures as model results. CE/BPB and CORE remain separate diagnostics with their existing protocols.
 
@@ -256,3 +256,7 @@ Blog packages remain **[1–4], [5–6], [7]**. Part I is not complete merely be
 ## Attribution and rights
 
 Metric semantics are adapted from [karpathy/nanochat](https://github.com/karpathy/nanochat) (MIT); see `THIRD_PARTY_NOTICES.md`. Original ClimbMix is CC BY-NC 4.0; community MIT metadata does not erase upstream terms. Dataset and trained-weight redistribution require separate review. This repository has no blanket license declaration for all artifacts at this stage.
+
+## Canonical stage-owned source (2026-10-19)
+
+`pretraining/`, `midtraining/` (KD/continued pretraining only), `sft/`, `rl/` own stage source/configs/entrypoints. `datasets/` and `checkpoints/` remain payload-only. See [stage-layout mapping](docs/en/STAGE_LAYOUT.md) and its original-blob manifest. Prior run paths in append-only journals are historical, not current source entrypoints. No operational RL trainer is claimed; native payloads and evidence remain in their original locations.

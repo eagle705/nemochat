@@ -6,7 +6,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 def load_contract():
-    path = ROOT / 'midtraining/offline2b/prefix/continuation03/repair_contract.py'
+    path = ROOT / 'midtraining/training/offline_kd/prefix/continuation03/repair_contract.py'
     spec = importlib.util.spec_from_file_location('repair03', path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -69,7 +69,7 @@ def test_sparse_writer_attaches_to_unwrapped_native_output_layer():
 
 def test_student_preserves_original_resume_and_full_schedule():
     import ast
-    root = ROOT/'midtraining/offline2b/prefix/continuation03'
+    root = ROOT/'midtraining/training/offline_kd/prefix/continuation03'
     source = (root/'native.py').read_text()
     ast.parse(source)
     assert 'start=0' in source

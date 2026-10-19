@@ -12,7 +12,7 @@ import time
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / 'scripts/posttraining/nemotron_48h_pipeline.py'
+SCRIPT = ROOT / 'sft/training/nemotron_48h_pipeline.py'
 
 
 def module():
@@ -243,7 +243,7 @@ def test_generation02_parent_start_artifact_has_real_source_hashes_and_inert_ver
     argv = json.loads(launched.stdout.splitlines()[-1])
     assert argv == p.supervisor_payload()[1:]
     source_list = (ROOT / p.OUT / 'reviewed-inputs.sha256').read_text()
-    assert 'scripts/posttraining/nemotron_48h_pipeline.py' in source_list
+    assert 'sft/training/nemotron_48h_pipeline.py' in source_list
     assert str(p.SDK_GUARD) in source_list
     assert 'cpu-full-01' not in source_list
     assert 'checkpoint/' not in source_list

@@ -6,12 +6,12 @@ import unittest
 import numpy as np
 import torch
 ROOT=Path(__file__).resolve().parents[1]
-HERE=ROOT/'midtraining/offline2b/ablation_lm_only/ordinary02'
+HERE=ROOT/'midtraining/training/offline_kd/ablation_lm_only/ordinary02'
 
 class OrdinaryLM(unittest.TestCase):
     def module(self,name):
         self.assertTrue((HERE/f'{name}.py').exists(),f'{name} implementation missing')
-        return importlib.import_module('midtraining.offline2b.ablation_lm_only.ordinary02.'+name)
+        return importlib.import_module('midtraining.training.offline_kd.ablation_lm_only.ordinary02.'+name)
 
     def test_lm_coefficient_one_and_actual_gradient_one(self):
         objective=self.module('objective')

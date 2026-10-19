@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def load():
-    path = ROOT / 'midtraining/run_pipeline.py'
+    path = ROOT / 'midtraining/training/run_pipeline.py'
     assert path.is_file(), 'parent-owned midtraining controller missing'
     spec = importlib.util.spec_from_file_location('midtraining_pipeline', path)
     module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
@@ -82,6 +82,6 @@ def test_payload_uses_native_eight_ranks_and_isolated_mounts():
     assert payload['HostConfig']['NetworkMode'] == 'none'
     assert payload['HostConfig']['DeviceRequests'][0]['Count'] == 8
     assert '--nproc_per_node=8' in payload['Cmd']
-    assert 'midtraining/native_kd.py' in payload['Cmd']
+    assert 'midtraining/training/native_kd.py' in payload['Cmd']
     assert any(x.endswith(':/workspace:ro') for x in payload['HostConfig']['Binds'])
     assert not payload['HostConfig'].get('Privileged', False)

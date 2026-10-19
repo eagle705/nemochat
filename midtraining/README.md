@@ -1,3 +1,19 @@
+# Midtraining: KD and continued pretraining only
+
+- `data/`: corpus preparation/recovery, offline-KD preparation/materialization and pinned teacher download.
+- `configs/`: pilot/calibration/longrun/corpus YAML, including `offline_kd/` cache-corpus recipes.
+- `cache/directio/`: optional native-cache direct-I/O gates, identity binding and transport integration.
+- `training/`: native KD/longrun/pipeline and `offline_kd/` teacher-cache/native variants.
+- `evaluation/`: offline/auto/GPU ablation comparisons.
+- `publication/`: KD exports/publication only.
+- `patches/`: scoped Bridge/Core compatibility seam and preserved upstream licenses/evidence.
+- `docs/`: corpus, production, recovery and verification reports, including the `offline_kd/` guide.
+- [Historical variants index](archive/README.md).
+
+**SFT lives exclusively in [../sft](../sft/README.md).** No SFT alias/tree remains here. The historical guide below records its original pilot state, not current GPU qualification. See [stage migration](../docs/en/STAGE_LAYOUT.md).
+
+---
+
 # BASE → LM + Knowledge Distillation → SFT
 
 ## Selected starting point — user decision, 2026-10-17
@@ -15,7 +31,7 @@ Reference LR: old peak `1e-4`, old final `1e-5`; pilot peak `1e-5`, minimum `1e-
 
 ## Current execution contract
 
-This is a new, explicitly authorized midtraining experiment, **not a relabeling of completed LM-only pretraining**. The existing-ClimbMix native LM+KD control has now completed update/save/teacher-free reload gates; see [executed verification](VERIFICATION.md). The new Specialized corpus [preparation](CORPUS.md) has passed real native writer/readback checks: 10,000,610 training tokens and 406,814 validation tokens, zero train/heldout token-document overlap and fresh zero counts for IDs18–29 across all eight files. This is calibration capacity, not a day-long pack. The [24h lifecycle](LONGRUN.md) now has real pinned-image configuration acceptance; duration-control/save/reload and full-batch calibration are separate execution gates. Production training and quality improvement are not yet established.
+This is a new, explicitly authorized midtraining experiment, **not a relabeling of completed LM-only pretraining**. The existing-ClimbMix native LM+KD control has now completed update/save/teacher-free reload gates; see [executed verification](docs/VERIFICATION.md). The new Specialized corpus [preparation](docs/CORPUS.md) has passed real native writer/readback checks: 10,000,610 training tokens and 406,814 validation tokens, zero train/heldout token-document overlap and fresh zero counts for IDs18–29 across all eight files. This is calibration capacity, not a day-long pack. The [24h lifecycle](docs/LONGRUN.md) now has real pinned-image configuration acceptance; duration-control/save/reload and full-batch calibration are separate execution gates. Production training and quality improvement are not yet established.
 
 - Teacher: `nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-Base-BF16`, immutable revision `4ba52e8ffa79e9693936c1a819ac89f551ceeef6`. Never substitute the Instruct model or Nemotron 3.0 weights.
 - Download: 63 BF16 safetensors shards, **248,913,061,312 bytes** excluding auxiliary files. Original Hub weights remain untouched. No downloaded custom Python is executed.
@@ -60,9 +76,9 @@ The user accepted Specialized-v1.1 **Code-Concepts + Unconditional-Algorithmic +
 
 ## Native execution and evidence locations
 
-- Compact frozen stage YAML: `midtraining/pilot.yaml`.
+- Compact frozen stage YAML: `midtraining/configs/pilot.yaml`.
 - SDK-generated full native YAML from the accepted config-only probe: `results/midtraining/super35-kd-01/config-native-03/native-config.yaml`. Runtime segments generate their own actual consumed native YAML and independent `teacher-provider.json`; teacher/KD fields omitted by native provider serialization are not lost.
-- Parent-owned sequence: `midtraining/run_pipeline.py`, with a frozen ten-source allowlist at `results/midtraining/super35-kd-01/pipeline-01/reviewed-sources.json`. It verifies the complete download receipt, materializes the teacher text view, takes the cooperative eight-GPU lock and checks live occupancy/recovery, runs the four-call native pilot, then teacher-free native reload/evaluation. It never auto-starts SFT or retries a failed native writer.
+- Parent-owned sequence: `midtraining/training/run_pipeline.py`, with a frozen ten-source allowlist at `results/midtraining/super35-kd-01/pipeline-01/reviewed-sources.json`. It verifies the complete download receipt, materializes the teacher text view, takes the cooperative eight-GPU lock and checks live occupancy/recovery, runs the four-call native pilot, then teacher-free native reload/evaluation. It never auto-starts SFT or retries a failed native writer.
 - Supervisor: `nemochat-midtraining-base35-pipeline-01.service`; exact state/log/Engine receipts are under `results/midtraining/super35-kd-01/pipeline-01/`. Segment all-rank evidence is under `pilot-01/` and `reload-01/`. `NATIVE_PILOT_STARTING` means launch/setup, not proven optimizer progress.
 - Pilot saves model-only student DCP (`save_optim=false`, `save_rng=false`). This is a next-stage warmstart artifact, **not a resumable long-run optimizer checkpoint**. Reload is separately verified with no teacher and no optimizer updates.
 - Focused verification command: `.venv/bin/python -m pytest -q tests/test_midtraining_download.py tests/test_midtraining_teacher_view.py tests/test_midtraining_native.py tests/test_midtraining_tokenizer_gate.py tests/test_midtraining_shape_patch.py tests/test_midtraining_pipeline.py`.

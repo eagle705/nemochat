@@ -51,7 +51,7 @@ def test_fixture_pair_and_cli(synthetic_manifest):
     assert result["fixture"] and result["pairs"][0]["merged_minus_raw"] == 0.5
     root = Path(__file__).resolve().parents[1]
     output = synthetic_manifest.parent / "comparison.json"
-    command = [sys.executable, str(root / "scripts/gym_eval.py"), "--manifest",
+    command = [sys.executable, str(root / "rl/evaluation/gym_eval.py"), "--manifest",
                str(synthetic_manifest), "--allow-fixtures", "--output", str(output)]
     env = {**os.environ, "PYTHONPATH": str(root / "src")}
     run = subprocess.run(command, env=env, capture_output=True, text=True)

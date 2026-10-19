@@ -38,14 +38,14 @@ These are historical execution facts, not authorization to launch anything.
 
 | Area | Entrypoints / contracts | Boundary |
 |---|---|---|
-| Dataset preparation | `scripts/posttraining/nemotron_sft.py`, `src/nemochat/data/nemotron_sft.py` | Author-selected assistant turns, full official rendering, reservations and no silent truncation |
-| Settings | `configs/posttraining/nemotron_dataset_settings.yaml`, `src/nemochat/data/sft_dataset_settings.py` | Strict planner crosschecks **local frozen discovery/migration/reservation receipts**; a source-only checkout cannot assert operational readiness |
-| Tokenizer transition | `scripts/posttraining/prepare_tokenizer.py`, `src/nemochat/tokenization/posttraining.py`, `configs/tokenizers/nemotron_super35.yaml` | Reserved-name-only IDs 18–29; no mapping, weights or scheduler changes |
-| Native KD history | `midtraining/README.md`, `midtraining/offline2b/`, `midtraining/patches/offline_kd_pr/` | Frozen source variants and patched Bridge integration; not a generic portable trainer |
-| Native SFT history | `midtraining/sft_after_kd/` | Runtime02–05, sealed-memory handoff and continuation/recovery variants retained byte-for-byte |
-| Export/publication | `midtraining/publication/`, `src/nemochat/hub/base_checkpoint.py` | Model-only export is distinct from optimizer-bearing native resume; publication needs separate authorization |
+| Dataset preparation | `sft/data/nemotron_sft.py`, `src/nemochat/data/nemotron_sft.py` | Author-selected assistant turns, full official rendering, reservations and no silent truncation |
+| Settings | `sft/configs/nemotron_dataset_settings.yaml`, `src/nemochat/data/sft_dataset_settings.py` | Strict planner crosschecks **local frozen discovery/migration/reservation receipts**; a source-only checkout cannot assert operational readiness |
+| Tokenizer transition | `sft/data/prepare_tokenizer.py`, `src/nemochat/tokenization/posttraining.py`, `sft/configs/tokenizer_super35.yaml` | Reserved-name-only IDs 18–29; no mapping, weights or scheduler changes |
+| Native KD history | `midtraining/README.md`, `midtraining/training/offline_kd/`, `midtraining/patches/offline_kd_pr/` | Frozen source variants and patched Bridge integration; not a generic portable trainer |
+| Native SFT history | `sft/training/`, `sft/resume/runtime/`, `sft/archive/` | Runtime02–05, sealed-memory handoff and continuation/recovery variants retained with reviewed path routing; exact original bytes remain in Git history/local snapshot |
+| Export/publication | `pretraining/publication/`, `midtraining/publication/`, `sft/publication/`, `src/nemochat/hub/base_checkpoint.py` | Model-only export is distinct from optimizer-bearing native resume; publication needs separate authorization |
 | Dashboard | `dashboard/server.py`, `dashboard/README.md` | Read-only, loopback-only by default; captures/SDKs are optional external inputs |
-| Pretraining wrappers | `scripts/pretraining/README.md` | Historical machine-bound entrypoints depend on ignored original runtime helpers |
+| Pretraining wrappers | `pretraining/entrypoints/README.md` | Historical machine-bound entrypoints depend on ignored original runtime helpers |
 
 The root README's original CPU implementation table describes the earlier tutorial
 scope. This page supersedes it **only for the accepted execution milestones above**;
@@ -95,3 +95,7 @@ Before local commits, independent review must inspect the staged allowlist/diff,
 licenses, redacted scan findings and test report. The parent owns local commits;
 no push, PR, public release, training, dependency upgrade or new download is part
 of this handoff.
+
+## Canonical stage-owned source (2026-10-19)
+
+`pretraining/`, `midtraining/` (KD/continued pretraining only), `sft/`, `rl/` own stage source/configs/entrypoints. `datasets/` and `checkpoints/` remain payload-only. See [stage-layout mapping](STAGE_LAYOUT.md) and its original-blob manifest. Prior run paths in append-only journals are historical, not current source entrypoints. No operational RL trainer is claimed; native payloads and evidence remain in their original locations.

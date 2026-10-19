@@ -13,7 +13,7 @@ SDK range is `wandb>=0.30,<0.31`. Offline verification used **0.30.0**.
 | `data` / `stage` | `scripts/prepare_data.py` | Bounded data preparation, counters and dataset metadata |
 | `pretrain` / `stage` | `scripts/train_cpu.py` | CPU tiny-HF control: updates, save and resume; not NemoChat/Bridge training |
 | `pretrain` / `evaluation` | `scripts/base_eval.py` | Measured CPU HF inference; report retains partial/capped CORE scope |
-| `pretrain` / `evaluation` | `scripts/gym_eval.py` | Imported saved Gym results; fixtures explicitly labeled; no judge/model API call |
+| `pretrain` / `evaluation` | `rl/evaluation/gym_eval.py` | Imported saved Gym results; fixtures explicitly labeled; no judge/model API call |
 | `longcontext` / `schedule-plan` | `scripts/lc_schedule.py` | Schedule and cursor emission only, no model training |
 | `midtrain`, `sft`, `rlvr`, `mopd` | Registration vocabulary only | No corresponding training entrypoint implemented |
 

@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 import yaml
 
-N = runpy.run_path('scripts/posttraining/native_nemotron_sft.py')
-L = runpy.run_path('scripts/posttraining/launch_nemotron_sft.py')
+N = runpy.run_path('sft/training/native_nemotron_sft.py')
+L = runpy.run_path('sft/training/launch_nemotron_sft.py')
 LONG = 'nvidia/Nemotron-SFT-Long-Context-Transduction-v1'
 
 
@@ -32,7 +32,7 @@ def test_16k_rows_shift_tail_and_coverage(tmp_path):
 
 
 def test_16k_plan_requires_whole_dataset_exclusion_and_cp1_ep8():
-    c = yaml.safe_load(Path('configs/posttraining/nemochat_baby_nemotron_sft.yaml').read_text())
+    c = yaml.safe_load(Path('sft/configs/nemochat_baby_nemotron_sft.yaml').read_text())
     c.update(sequence_length=16384, excluded_datasets=[LONG], context_parallel_size=1,
              expert_model_parallel_size=8)
     m = dict(status='passed', schema='nemochat-nemotron-sft-v1',
@@ -74,7 +74,7 @@ def test_input_policy_accepts_three_active_sources_but_rejects_excluded_heldout(
 
 
 def test_launcher_accepts_actual_16k_all8_positions(tmp_path):
-    c = yaml.safe_load(Path('configs/posttraining/nemochat_baby_nemotron_sft.yaml').read_text())
+    c = yaml.safe_load(Path('sft/configs/nemochat_baby_nemotron_sft.yaml').read_text())
     c.update(sequence_length=16384, excluded_datasets=[LONG])
     m = dict(status='passed', schema='nemochat-nemotron-sft-v1',
         format='official-super35-selected-assistant-v1', sequence_length=16384,
@@ -94,7 +94,7 @@ def test_launcher_accepts_actual_16k_all8_positions(tmp_path):
 
 
 def test_16k_protocol_configs_freeze_no_repetition_and_fresh_calibration():
-    c = yaml.safe_load(Path('configs/posttraining/nemochat_baby_nemotron_sft_16k_48h.yaml').read_text())
+    c = yaml.safe_load(Path('sft/configs/nemochat_baby_nemotron_sft_16k_48h.yaml').read_text())
     assert c['sequence_length'] == 16384 and c['context_parallel_size'] == 1 and c['expert_model_parallel_size'] == 8
     assert c['epochs'] == 1 and not c['allow_repetition']
     assert c['calibration_receipt'] is None and c['estimated_iteration_seconds'] is None
@@ -114,7 +114,7 @@ def test_16k_pilot_is_native_wall_bounded_and_main_needs_measured_rate():
         kmmlu_exact_question_matches=0, kmmlu_reserved_questions=34871,
         training_repetition=False, excluded_datasets=[LONG])
     assert N['stage_plan'](c,m,pilot=True)['max_hours'] == .5
-    c = yaml.safe_load(Path('configs/posttraining/nemochat_baby_nemotron_sft_16k_48h.yaml').read_text())
+    c = yaml.safe_load(Path('sft/configs/nemochat_baby_nemotron_sft_16k_48h.yaml').read_text())
     m.update(train_dialogues=1000000, heldout_dialogues=5000,
         prior_heldout_reservation_file=c['prior_heldout_reservation'], prior_reserved_prompt_groups=14)
     with pytest.raises(ValueError, match='calibration'):

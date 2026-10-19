@@ -3,7 +3,7 @@ import importlib.util
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 def module():
-    path = ROOT/'midtraining/offline2b/materialize.py'
+    path = ROOT/'midtraining/data/offline_kd/materialize.py'
     assert path.is_file(), 'actual materializer required'
     s = importlib.util.spec_from_file_location('materializer_test',path)
     m = importlib.util.module_from_spec(s); s.loader.exec_module(m)

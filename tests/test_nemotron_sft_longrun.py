@@ -6,12 +6,12 @@ import numpy as np
 import pytest
 import yaml
 
-NATIVE = runpy.run_path('scripts/posttraining/native_nemotron_sft.py')
-LAUNCH = runpy.run_path('scripts/posttraining/launch_nemotron_sft.py')
+NATIVE = runpy.run_path('sft/training/native_nemotron_sft.py')
+LAUNCH = runpy.run_path('sft/training/launch_nemotron_sft.py')
 
 
 def config(**kwargs):
-    c = yaml.safe_load(Path('configs/posttraining/nemochat_baby_nemotron_sft.yaml').read_text())
+    c = yaml.safe_load(Path('sft/configs/nemochat_baby_nemotron_sft.yaml').read_text())
     c.update(execution_mode='longrun', epochs=3, max_hours=48, max_updates=14000,
              allow_repetition=True, watchdog_grace_minutes=60, validation_max_dialogues=1000,
              estimated_iteration_seconds=11.510017357512954, assumed_overhead_fraction=.1)
@@ -70,7 +70,7 @@ def test_seeded_epochs_keep_zero_loss_tail_and_exact_prefix_coverage(tmp_path):
 
 def test_config_is_forwarded_and_duration_receipt_accepts_only_saved_prefix(tmp_path):
     payload = LAUNCH['make_payload']('duration-test', Path('datasets/pilot/manifest.json'),
-        pilot=True, config=Path('configs/posttraining/nemochat_baby_nemotron_sft_48h.yaml'), duration_control=True)
+        pilot=True, config=Path('sft/configs/nemochat_baby_nemotron_sft_48h.yaml'), duration_control=True)
     assert '--config' in payload['Cmd'] and '--duration-control' in payload['Cmd']
     assert payload['Cmd'][payload['Cmd'].index('--config')+1].endswith('_48h.yaml')
     # Handwritten lifecycle fixture, not GPU evidence.
@@ -166,7 +166,7 @@ def test_calibration_must_reference_accepted_native_run(tmp_path):
 def test_preview_cannot_be_combined_with_execute():
     import subprocess
     import sys
-    result = subprocess.run([sys.executable,'scripts/posttraining/launch_nemotron_sft.py',
+    result = subprocess.run([sys.executable,'sft/training/launch_nemotron_sft.py',
         '--name','never-launch','--manifest','missing-manifest.json','--execute','--preview'],
         capture_output=True,text=True)
     assert result.returncode == 2

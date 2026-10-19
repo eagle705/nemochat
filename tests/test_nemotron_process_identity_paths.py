@@ -7,7 +7,7 @@ import pytest
 
 
 def test_owned_relative_script_matches_absolute_path_but_not_other_directory(tmp_path):
-    spec = importlib.util.spec_from_file_location('relative_identity_control', 'scripts/posttraining/nemotron_48h_pipeline.py')
+    spec = importlib.util.spec_from_file_location('relative_identity_control', 'sft/training/nemotron_48h_pipeline.py')
     controller = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(controller)
     script = tmp_path / 'owned_worker.py'

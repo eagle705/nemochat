@@ -72,7 +72,7 @@ The run consumed a completed cache prefix while retaining the original full samp
 - Re-read `student-rank{0..7}-updates.jsonl` and verified exactly calls 1–64, LR, Loss, Grad Norm, and skipped status on each rank.
 - Rechecked the first **1,024 microbatch digest rows per rank**, **8,192 rows total**, against the original teacher's matching source iteration/rank. Each recorded digest covers tokens, labels, loss masks, and position IDs. Digest-row counts and global-sample counts are distinct accounting units even though their totals coincide here with Micro Batch Size 1.
 - The native synchronous-save transaction contains eight acknowledgements of the same `next_iteration=64`, `consumed_samples=8192`, and cache/sampler binding.
-- Checkpoint location: [`results/midtraining/offline2b-prefixtrain-01/checkpoint/iter_0000064/`](../../results/midtraining/offline2b-prefixtrain-01/checkpoint/iter_0000064/).
+- Checkpoint location: [`results/midtraining/offline2b-prefixtrain-01/checkpoint/iter_0000064/`](../../results/midtraining/offline2b-prefixtrain-01/checkpoint/iter_0000064).
 - Native model, optimizer, and RNG saving is recorded. A later independent continuation restored step64 on all ranks and executed subsequent updates; **those updates are not in this report's figure**.
 - **No model/optimizer checkpoint payload SHA or CRC audit was performed**, in accordance with `not_checked_explicit_user_waiver`. Do not confuse document/log/figure digests with checkpoint byte validation. Documentation did not reload the checkpoint or execute the model.
 

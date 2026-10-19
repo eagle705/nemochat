@@ -1,6 +1,6 @@
 # BASE → LM + Knowledge Distillation → SFT
 
-이 작업은 완료된 BASE의 학습 이력을 바꾸는 것이 아니라, **BASE에서 시작하는 별도 midtraining 실험**입니다. 기존 ClimbMix native LM+KD control의 update/save/teacher 없는 reload는 [실제 실행 검증](VERIFICATION.ko.md)을 통과했습니다. 새 Specialized corpus의 [실제 전처리](CORPUS.ko.md)는 native writer/readback 검사를 통과했습니다. Train 10,000,610 tokens / Validation 406,814 tokens, train·heldout token-document overlap 0, 8개 파일의 reserved ID18–29 출현 0입니다. 이는 calibration 용량이며 하루치 데이터가 아닙니다. [24시간 실행 경로](LONGRUN.ko.md)는 실제 pinned-image config 검사를 통과했고, duration-control/save/reload와 full-batch calibration은 별도 실행 검증입니다. 본학습·품질 향상 완료는 아직 주장하지 않습니다.
+이 작업은 완료된 BASE의 학습 이력을 바꾸는 것이 아니라, **BASE에서 시작하는 별도 midtraining 실험**입니다. 기존 ClimbMix native LM+KD control의 update/save/teacher 없는 reload는 [실제 실행 검증](docs/VERIFICATION.ko.md)을 통과했습니다. 새 Specialized corpus의 [실제 전처리](docs/CORPUS.ko.md)는 native writer/readback 검사를 통과했습니다. Train 10,000,610 tokens / Validation 406,814 tokens, train·heldout token-document overlap 0, 8개 파일의 reserved ID18–29 출현 0입니다. 이는 calibration 용량이며 하루치 데이터가 아닙니다. [24시간 실행 경로](docs/LONGRUN.ko.md)는 실제 pinned-image config 검사를 통과했고, duration-control/save/reload와 full-batch calibration은 별도 실행 검증입니다. 본학습·품질 향상 완료는 아직 주장하지 않습니다.
 
 - Teacher: `nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-Base-BF16`
 - Revision: `4ba52e8ffa79e9693936c1a819ac89f551ceeef6`
@@ -48,9 +48,9 @@ ModelOpt 기본 loss balancer는 raw `LM + 0.5*KL`이 아닙니다. 양의 loss�
 
 ## 실제 실행과 문서 위치
 
-- 실험 설정: `midtraining/pilot.yaml`
+- 실험 설정: `midtraining/configs/pilot.yaml`
 - SDK가 생성한 전체 native YAML: `results/midtraining/super35-kd-01/config-native-03/native-config.yaml`. 실제 pilot/reload도 각자의 runner-consumed YAML을 생성하고, native 직렬화에서 빠지는 teacher/KD 설정은 별도로 보존합니다.
-- 실행 controller: `midtraining/run_pipeline.py`. 검증된 전체 다운로드 → 텍스트 변환 → GPU lock/점유·recovery 검사 → native pilot → teacher 없는 student reload/evaluation 순서를 강제합니다. 소스 10개 checksum을 고정하며 실패한 native writer를 자동 재시작하거나 SFT를 자동 시작하지 않습니다.
+- 실행 controller: `midtraining/training/run_pipeline.py`. 검증된 전체 다운로드 → 텍스트 변환 → GPU lock/점유·recovery 검사 → native pilot → teacher 없는 student reload/evaluation 순서를 강제합니다. 소스 10개 checksum을 고정하며 실패한 native writer를 자동 재시작하거나 SFT를 자동 시작하지 않습니다.
 - Supervisor: `nemochat-midtraining-base35-pipeline-01.service`. 현재 상태·로그·정확한 Engine 결과는 `results/midtraining/super35-kd-01/pipeline-01/`, rank별 학습 증거는 `pilot-01/`, reload 증거는 `reload-01/`에 남깁니다. `NATIVE_PILOT_STARTING`은 시작/로딩 단계이지 학습 update 완료가 아닙니다.
 - Pilot은 student model-only DCP를 저장합니다(`save_optim=false`, `save_rng=false`). 다음 stage warmstart용이지 장기 학습의 optimizer resume checkpoint는 아닙니다. Reload 통과는 별도로 확인합니다.
 
@@ -63,3 +63,7 @@ ModelOpt 기본 loss balancer는 raw `LM + 0.5*KL`이 아닙니다. 양의 loss�
 진단 generation02는 실패한01 source/proof를 보존하고 activation finite 관측 및 실제 Loss/Grad Norm/skip 기록만 추가합니다. 출력·Loss·clipping·검증 기준은 바꾸지 않으며 진단 timing을 처리량으로 보고하지 않습니다. 실제 SDK import-plan 검사에서 student6289개 source key mapping을 확인했지만 weight load/update 검증과는 구분합니다. 현재 supervisor는 `nemochat-midtraining-base35-pipeline-02.service`, 상태와 증거는 `pipeline-02/`, `pilot-02/`, `reload-02/`를 따릅니다. 실행 source allowlist는12개입니다.
 
 실제 source 경로와 세부 acceptance는 [English contract](README.md)를 확인하십시오.
+
+## 2026-10-19 단계별 정리
+
+소스는 최상위 pretraining/midtraining/sft/rl로 분리합니다. midtraining에는 KD/계속 사전학습만 있으며 SFT는 별도 최상위 폴더입니다. 기존 데이터/체크포인트/실행 증거는 이동하거나 덮어쓰지 않습니다. [단계별 경로 명세](../docs/ko/STAGE_LAYOUT.md)를 확인하세요. RL 학습기가 구현되었다는 뜻은 아닙니다.

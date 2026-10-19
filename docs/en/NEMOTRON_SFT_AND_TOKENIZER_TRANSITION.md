@@ -116,17 +116,17 @@ Run from the repository root. The agreed code-worker entrypoints are listed belo
 
 | Intended entrypoint | Purpose | Companion contract |
 |---|---|---|
-| `scripts/posttraining/prepare_tokenizer.py` | Source pin, backend compatibility, old-ID scan and migration artifact | `configs/tokenizers/nemotron_super35.yaml`; `src/nemochat/tokenization/posttraining.py` |
-| `scripts/posttraining/nemotron_sft.py` | Bounded source preparation and selected-turn/token accounting | `configs/posttraining/nemochat_baby_nemotron_sft.yaml`; `src/nemochat/data/nemotron_sft.py` |
-| `scripts/posttraining/publish_hf_base.py` | Separate private PRETRAIN BASE packaging/publication | `src/nemochat/hub/base_checkpoint.py` |
+| `sft/data/prepare_tokenizer.py` | Source pin, backend compatibility, old-ID scan and migration artifact | `sft/configs/tokenizer_super35.yaml`; `src/nemochat/tokenization/posttraining.py` |
+| `sft/data/nemotron_sft.py` | Bounded source preparation and selected-turn/token accounting | `sft/configs/nemochat_baby_nemotron_sft.yaml`; `src/nemochat/data/nemotron_sft.py` |
+| `pretraining/publication/publish_hf_base.py` | Separate private PRETRAIN BASE packaging/publication | `src/nemochat/hub/base_checkpoint.py` |
 
 At 10:16 KST the three script files/configs were not yet available, so no `--help` success or subcommand/flag spelling is claimed. The tokenizer module was being written; its presence alone did not establish full CLI readiness. Use this non-destructive availability/help check before constructing any operation; it deliberately performs **no data preparation, GPU training or upload**:
 
 ```bash
 for entry in \
-  scripts/posttraining/prepare_tokenizer.py \
-  scripts/posttraining/nemotron_sft.py \
-  scripts/posttraining/publish_hf_base.py
+  sft/data/prepare_tokenizer.py \
+  sft/data/nemotron_sft.py \
+  pretraining/publication/publish_hf_base.py
 do
   if test -f "$entry"; then
     .venv/bin/python "$entry" --help
@@ -136,7 +136,7 @@ do
 done
 ```
 
-**Readiness update, 2026-10-17 10:21 KST:** `scripts/posttraining/prepare_tokenizer.py` and `configs/tokenizers/nemotron_super35.yaml` are now present. The documentation worker actually ran `.venv/bin/python scripts/posttraining/prepare_tokenizer.py --help` successfully (exit 0). It exposes positional stages `download`, `audit`, `verify-runtime`, `publish`, plus `--config`; `publish` here writes the **local tokenizer migration manifest**, not an HF weight upload. The source prescribes that order. `verify-runtime` must run in the compatible native SDK CPU runtime, not the incompatible host environment. None of those four stages was executed by this documentation worker; the migration manifest was still absent at the readiness check. The SFT and BASE publication CLIs were still pending, so their flags remain unspecified.
+**Readiness update, 2026-10-17 10:21 KST:** `sft/data/prepare_tokenizer.py` and `sft/configs/tokenizer_super35.yaml` are now present. The documentation worker actually ran `.venv/bin/python sft/data/prepare_tokenizer.py --help` successfully (exit 0). It exposes positional stages `download`, `audit`, `verify-runtime`, `publish`, plus `--config`; `publish` here writes the **local tokenizer migration manifest**, not an HF weight upload. The source prescribes that order. `verify-runtime` must run in the compatible native SDK CPU runtime, not the incompatible host environment. None of those four stages was executed by this documentation worker; the migration manifest was still absent at the readiness check. The SFT and BASE publication CLIs were still pending, so their flags remain unspecified.
 
 Do not infer preparation/training/upload options from filenames. Once the code worker delivers a CLI, capture its real `--help`, use only supported flags, and append the exact accepted commands and receipts here. Native-launch commands additionally require the compatible SDK and parent's GPU authorization/gates; none are invented in this document.
 

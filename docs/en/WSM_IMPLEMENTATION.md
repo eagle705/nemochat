@@ -64,7 +64,7 @@ provides the official dependency graph, not a huge vendored copy in this project
 Use **one stable training trajectory**. At every scheduled milestone evaluate
 (1) its untouched raw target and (2) WSM from its sliding window, using identical
 evaluation data/tokenizer/context. There are **no separate decay-training branches**.
-`configs/pretrain/wsm.json` records an illustrative policy, not a runnable Megatron
+`pretraining/configs/wsm.json` records an illustrative policy, not a runnable Megatron
 training config or an automatically loaded wrapper config. Repeat identical window
 and spacing arguments for each target; preserve all raw checkpoints.
 

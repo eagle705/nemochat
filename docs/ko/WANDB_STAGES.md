@@ -13,7 +13,7 @@ W&B는 선택적 관측 도구이며 학습 백엔드가 아니다. 가상환경
 | `data` / `stage` | `scripts/prepare_data.py` | 제한된 데이터 준비, 카운터, 데이터셋 메타데이터 |
 | `pretrain` / `stage` | `scripts/train_cpu.py` | CPU tiny-HF 제어 실험의 업데이트/저장/재개; NemoChat/Bridge 학습 아님 |
 | `pretrain` / `evaluation` | `scripts/base_eval.py` | 실제 CPU HF 추론; 부분/예제 수 제한 CORE 범위 유지 |
-| `pretrain` / `evaluation` | `scripts/gym_eval.py` | 저장된 Gym 결과 비교; fixture 명시; 모델/판정 API 호출 없음 |
+| `pretrain` / `evaluation` | `rl/evaluation/gym_eval.py` | 저장된 Gym 결과 비교; fixture 명시; 모델/판정 API 호출 없음 |
 | `longcontext` / `schedule-plan` | `scripts/lc_schedule.py` | 스케줄/커서 출력만 수행; 모델 학습 없음 |
 | `midtrain`, `sft`, `rlvr`, `mopd` | 등록용 단계 이름만 지원 | 해당 학습 진입점 미구현 |
 

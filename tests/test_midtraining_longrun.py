@@ -6,7 +6,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 def module(name='longrun_native'):
-    spec = importlib.util.spec_from_file_location(name, ROOT / 'midtraining' / (name + '.py'))
+    spec = importlib.util.spec_from_file_location(name, ROOT / 'midtraining/training' / (name + '.py'))
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m
@@ -95,12 +95,12 @@ def test_native_index_guard_rejects_repeated_epochs():
 
 def test_frozen_configs_original_base_and_native_schedule(tmp_path):
     m = module()
-    c = m.load_config(ROOT/'midtraining/calibration.yaml')
+    c = m.load_config(ROOT/'midtraining/configs/calibration.yaml')
     assert c['train']['train_iters'] == 16
     assert c['train']['global_batch_size'] == 128
     assert c['student_hf'] == 'checkpoints/exports/nemochat_baby_base_hf_bf16_02'
     assert c['optimizer']['clip_grad'] == 1
-    p = m.load_config(ROOT/'midtraining/longrun24h.yaml')
+    p = m.load_config(ROOT/'midtraining/configs/longrun24h.yaml')
     assert p['train']['train_iters'] is None
     with pytest.raises(ValueError, match='calibration'):
         m.freeze_config(p, None)
@@ -188,11 +188,11 @@ def test_run_and_launcher_help_are_inert():
     import subprocess
     import sys
     for name in ('longrun_native.py', 'launch_longrun.py'):
-        result = subprocess.run([sys.executable, str(ROOT/'midtraining'/name), '--help'],
+        result = subprocess.run([sys.executable, str(ROOT/'midtraining/training'/name), '--help'],
                                 capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
         assert '--config' in result.stdout
-    result = subprocess.run([sys.executable, str(ROOT/'midtraining/launch_longrun.py'), '--preview'],
+    result = subprocess.run([sys.executable, str(ROOT/'midtraining/training/launch_longrun.py'), '--preview'],
                             capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     assert 'inert_preview' in result.stdout
@@ -208,7 +208,7 @@ def test_native_runtime_and_config_api_exist_without_importing_cuda():
 def test_launcher_payload_bounded_secretless_explicit_owned_gpus(tmp_path):
     m = module('launch_longrun')
     native = module()
-    c = native.load_config(ROOT/'midtraining/calibration.yaml')
+    c = native.load_config(ROOT/'midtraining/configs/calibration.yaml')
     c['checkpoint_save'] = 'checkpoints/midtraining/test-fresh-01'
     payload = m.container_payload(c, 'test-fresh-01', 'train', 'results/test/config.yaml')
     assert payload['Image'].startswith('nvcr.io/nvidia/nemo@sha256:')
@@ -244,7 +244,7 @@ def test_native_config_consumes_native_blend_and_full_state_save(monkeypatch,tmp
     import sys
     from types import ModuleType,SimpleNamespace
     m=module()
-    c=m.load_config(ROOT/'midtraining/calibration.yaml')
+    c=m.load_config(ROOT/'midtraining/configs/calibration.yaml')
     c['checkpoint_save']='checkpoints/midtraining/fresh-test'
     class Config:
         def __init__(self,**kw): self.__dict__.update(kw)

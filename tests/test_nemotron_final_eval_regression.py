@@ -5,7 +5,7 @@ These are CPU scheduling controls, not native GPU acceptance evidence.
 """
 import runpy
 
-NATIVE = runpy.run_path('scripts/posttraining/native_nemotron_sft.py')
+NATIVE = runpy.run_path('sft/training/native_nemotron_sft.py')
 
 
 def test_normal_budget_completion_does_not_consume_an_extra_heldout_window():

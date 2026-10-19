@@ -9,7 +9,7 @@ import sys
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / 'midtraining/production_corpus.py'
+SCRIPT = ROOT / 'midtraining/data/production_corpus.py'
 
 
 @pytest.fixture
@@ -236,13 +236,13 @@ def test_review_gate_exact_dependencies_and_seed_scope(tmp_path):
         mod.verify_review(config, {}, tmp_path/'calibration.json', lambda: None)
     p = mod.producer()
     review = dict(approved=True, files={name:p.file_digest(ROOT/name) for name in mod.REVIEW_FILES})
-    review['files'].pop('midtraining/longrun_native.py')
+    review['files'].pop('midtraining/training/longrun_native.py')
     with pytest.raises(ValueError, match='allowlist'):
         mod.verify_review(config, review, tmp_path/'calibration.json', lambda: None)
-    review['files']['midtraining/longrun_native.py'] = '0'*64
+    review['files']['midtraining/training/longrun_native.py'] = '0'*64
     with pytest.raises(ValueError, match='changed'):
         mod.verify_review(config, review, tmp_path/'calibration.json', lambda: None)
-    review['files']['midtraining/longrun_native.py'] = p.file_digest(ROOT/'midtraining/longrun_native.py')
+    review['files']['midtraining/training/longrun_native.py'] = p.file_digest(ROOT/'midtraining/training/longrun_native.py')
     # Scope checks precede original corpus reads / expensive payload verification.
     review['raw_files'] = []
     with pytest.raises(ValueError, match='seed shards'):

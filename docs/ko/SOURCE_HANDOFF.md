@@ -36,28 +36,28 @@ Git에 넣지 않는 기존 근거:
 
 ## 역할별 진입점
 
-- 데이터: `scripts/posttraining/nemotron_sft.py`와
+- 데이터: `sft/data/nemotron_sft.py`와
   `src/nemochat/data/nemotron_sft.py`. 공식 렌더링, 작성자 선택 assistant
   턴, heldout 예약, 무단 잘라내기 금지가 핵심이다.
-- 설정: `configs/posttraining/nemotron_dataset_settings.yaml`와
+- 설정: `sft/configs/nemotron_dataset_settings.yaml`와
   `src/nemochat/data/sft_dataset_settings.py`. 실제 로컬 discovery/토크나이저
   전환/예약 영수증을 엄격히 교차 검사하므로 소스만으로 운영 준비 완료를
   주장할 수 없다.
-- 토크나이저: `scripts/posttraining/prepare_tokenizer.py`,
+- 토크나이저: `sft/data/prepare_tokenizer.py`,
   `src/nemochat/tokenization/posttraining.py`,
-  `configs/tokenizers/nemotron_super35.yaml`. ID 18–29의 예약 이름만 전환하며
+  `sft/configs/tokenizer_super35.yaml`. ID 18–29의 예약 이름만 전환하며
   매핑/가중치/스케줄러를 바꾸지 않는다.
-- KD 이력: `midtraining/README.md`, `midtraining/offline2b/`,
+- KD 이력: `midtraining/README.md`, `midtraining/training/offline_kd/`,
   `midtraining/patches/offline_kd_pr/`. 일반 범용 trainer가 아니라 동결된
   변형 소스와 Bridge 패치다.
-- SFT 이력: `midtraining/sft_after_kd/`. runtime02–05, sealed-memory 전달,
-  continuation/recovery 소스를 바이트 그대로 보존한다.
-- 변환/게시: `midtraining/publication/`,
+- SFT 이력: `sft/training/`, `sft/resume/runtime/`, `sft/archive/`. runtime02–05, sealed-memory 전달,
+  continuation/recovery 소스는 경로를 갱신해 보존하며, 정확한 원본 바이트는 Git 이력/로컬 스냅샷에 남긴다. 이동한 소스는 GPU 재검증하지 않았다.
+- 변환/게시: `pretraining/publication/`, `midtraining/publication/`, `sft/publication/`,
   `src/nemochat/hub/base_checkpoint.py`. 모델 전용 HF와 optimizer를 포함한
   네이티브 재개는 별개다. 게시는 별도 허가가 필요하다.
 - 대시보드: `dashboard/server.py`, `dashboard/README.ko.md`. 기본 loopback,
   읽기 전용이며 실제 캡처/SDK는 선택적 외부 입력이다.
-- 사전학습 래퍼: `scripts/pretraining/README.ko.md`. ignored 런타임 helper가
+- 사전학습 래퍼: `pretraining/entrypoints/README.ko.md`. ignored 런타임 helper가
   필요한 과거 머신 종속 진입점이다.
 
 루트 README의 기존 CPU 표는 초기 튜토리얼 범위를 설명한다. 위에서 명시한
@@ -104,3 +104,7 @@ maintenance 보고서를 확인한다.
 부모 에이전트가 staged allowlist/diff, 라이선스, 보안 스캔과 실제 테스트
 결과를 독립 리뷰한 다음 로컬 커밋을 담당한다. push/PR/공개 배포/학습/
 패키지 업그레이드/새 다운로드는 이번 범위가 아니다.
+
+## 2026-10-19 단계별 정리
+
+소스는 최상위 pretraining/midtraining/sft/rl로 분리합니다. midtraining에는 KD/계속 사전학습만 있으며 SFT는 별도 최상위 폴더입니다. 기존 데이터/체크포인트/실행 증거는 이동하거나 덮어쓰지 않습니다. [단계별 경로 명세](STAGE_LAYOUT.md)를 확인하세요. RL 학습기가 구현되었다는 뜻은 아닙니다.

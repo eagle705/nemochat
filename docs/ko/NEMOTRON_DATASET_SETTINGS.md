@@ -8,10 +8,10 @@
 
 버전 관리 인터페이스:
 
-- [현재 명시적 16K/48h trainer template](../../configs/posttraining/nemochat_baby_nemotron_sft_16k_48h.yaml): pipeline-03의 고정 실행 입력이다. Calibration receipt/iteration estimate는 실제 측정 전까지 의도적으로 null이다.
-- [추후 128K 계획](../../configs/posttraining/nemochat_baby_long_context_128k.plan.yaml): **계획 전용**이며 바로 실행할 trainer config가 아니다.
-- [데이터셋 정책 registry](../../configs/posttraining/nemotron_dataset_settings.yaml)(`nemochat-nemotron-dataset-settings-v1`), [검증 모듈](../../src/nemochat/data/sft_dataset_settings.py), [조회/준비 wrapper](../../scripts/posttraining/nemotron_dataset_settings.py). 문서 작업 중 제공됐으며 실제 `--help`, 기본 검증, 모듈의 plan compile을 GPU/가중치 읽기 없이 통과했다.
-- [실제 normalization/preparation 구현](../../src/nemochat/data/nemotron_sft.py), [native adapter](../../scripts/posttraining/native_nemotron_sft.py), [48h controller](../../scripts/posttraining/nemotron_48h_pipeline.py).
+- [현재 명시적 16K/48h trainer template](../../sft/configs/nemochat_baby_nemotron_sft_16k_48h.yaml): pipeline-03의 고정 실행 입력이다. Calibration receipt/iteration estimate는 실제 측정 전까지 의도적으로 null이다.
+- [추후 128K 계획](../../sft/configs/nemochat_baby_long_context_128k.plan.yaml): **계획 전용**이며 바로 실행할 trainer config가 아니다.
+- [데이터셋 정책 registry](../../sft/configs/nemotron_dataset_settings.yaml)(`nemochat-nemotron-dataset-settings-v1`), [검증 모듈](../../src/nemochat/data/sft_dataset_settings.py), [조회/준비 wrapper](../../sft/data/nemotron_dataset_settings.py). 문서 작업 중 제공됐으며 실제 `--help`, 기본 검증, 모듈의 plan compile을 GPU/가중치 읽기 없이 통과했다.
+- [실제 normalization/preparation 구현](../../src/nemochat/data/nemotron_sft.py), [native adapter](../../sft/training/native_nemotron_sft.py), [48h controller](../../sft/training/nemotron_48h_pipeline.py).
 
 새 registry는 명시적 config와 정책을 대조하고 연결된 후속 호출에서 소비할 수 있다. 이미 시작된 pipeline-03의 입력 원천이 소급해서 바뀌거나 고정 입력이 자동 재작성되지는 않는다. 재시작 승인도 아니며, 과거 process가 registry를 읽었다는 증거도 아니다. Registry 검증, wrapper/plan 소비, 실제 native 실행은 구분한다.
 
@@ -32,9 +32,9 @@
 저장소 루트에서 실행한다. 아래는 검증/미리보기만 한다.
 
 ```bash
-CUDA_VISIBLE_DEVICES='' .venv/bin/python scripts/posttraining/nemotron_dataset_settings.py --help
-CUDA_VISIBLE_DEVICES='' .venv/bin/python scripts/posttraining/nemotron_dataset_settings.py --check --json
-CUDA_VISIBLE_DEVICES='' .venv/bin/python scripts/posttraining/nemotron_dataset_settings.py --preview --stage deferred_long_context --json
+CUDA_VISIBLE_DEVICES='' .venv/bin/python sft/data/nemotron_dataset_settings.py --help
+CUDA_VISIBLE_DEVICES='' .venv/bin/python sft/data/nemotron_dataset_settings.py --check --json
+CUDA_VISIBLE_DEVICES='' .venv/bin/python sft/data/nemotron_dataset_settings.py --preview --stage deferred_long_context --json
 ```
 
 기본/`--check`/`--preview`는 실행을 시작하지 않는다. JSON에는 검증과 stage별 data plan이 있고 `native_training_argv`는 null이다. 명시적인 `--raw`와 새 `--output`을 함께 주면 producer 명령을 만들 수 있다. `--write-plan`은 새 JSON plan만 쓴다. `--execute-prepare`만 실제 CPU 준비를 수행하며, 이미 승인된 호환 cached CPU runtime에서만 사용한다. 학습/container launcher가 아니다. 여기서 검증했다고 준비를 실행했다는 뜻은 아니다. 로컬 discovery/migration/reservation/audit 증거가 필요하며, 없는 fresh clone에서는 metadata를 만들지 말고 실패해야 한다.
@@ -106,7 +106,7 @@ Checkpoint byte integrity는 계속 `not_checked_explicit_user_waiver`다. 이 �
 
 ## 추후 128K CP/메모리 계약 — 현재 production 아님
 
-[128K 계획](../../configs/posttraining/nemochat_baby_long_context_128k.plan.yaml)은 `auto_launch: false`, `native_launch_ready: false`, `source_checkpoint: null`(수락된 최종 16K SFT 대기), `global_batch_size: null`(추후 native calibration 대기)이다. 현재 16K SFT를 중단/변경하지 않는다. 현재 native adapter는 CP1의 4K/16K만 허용하므로 이 계획을 그대로 실행 config로 전달할 수 없다.
+[128K 계획](../../sft/configs/nemochat_baby_long_context_128k.plan.yaml)은 `auto_launch: false`, `native_launch_ready: false`, `source_checkpoint: null`(수락된 최종 16K SFT 대기), `global_batch_size: null`(추후 native calibration 대기)이다. 현재 16K SFT를 중단/변경하지 않는다. 현재 native adapter는 CP1의 4K/16K만 허용하므로 이 계획을 그대로 실행 config로 전달할 수 없다.
 
 후보는 물리 GPU 8개, TP1/PP1, EP8 candidate, BF16, microbatch1이다. 보수적으로 **CP8**에서 시작하고 **[8, 4, 2]**를 검토하되 실제 학습 메모리/처리량 증거 뒤에만 CP를 낮춘다. 실제 training step 이후 **15% 여유 메모리**를 요구한다. Pin된 dense/expert grid 및 native Mamba CP partitioning을 각각 검증한다. Dense DP 계산만으로 EP 가능 여부를 단정하지 않는다. CP1 pilot 성공은 후속 CP 후보 검증이 아니다.
 

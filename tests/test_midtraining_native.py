@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_runner():
-    path = ROOT / 'midtraining/native_kd.py'
+    path = ROOT / 'midtraining/training/native_kd.py'
     assert path.exists(), 'native LM+KD entrypoint missing'
     spec = importlib.util.spec_from_file_location('native_kd', path)
     module = importlib.util.module_from_spec(spec)
@@ -29,7 +29,7 @@ def test_completed_update_index_uses_native_preincrement_callback_cursor():
 
 def test_frozen_pilot_contract():
     runner = load_runner()
-    c = runner.load_config(ROOT / 'midtraining/pilot.yaml')
+    c = runner.load_config(ROOT / 'midtraining/configs/pilot.yaml')
     assert c['train']['train_iters'] == 4
     assert c['optimizer']['lr'] == 1e-5
     assert c['optimizer']['min_lr'] == 1e-6
@@ -115,7 +115,7 @@ def test_runtime_options_preserve_independent_architectures():
     from types import SimpleNamespace
     import pytest
     runner = load_runner()
-    c = runner.load_config(ROOT / 'midtraining/pilot.yaml')
+    c = runner.load_config(ROOT / 'midtraining/configs/pilot.yaml')
     student = SimpleNamespace(hidden_size=1024, num_layers=52, vocab_size=131072)
     teacher = SimpleNamespace(hidden_size=4096, num_layers=88, vocab_size=131072)
     runner.configure_provider(student, c)
@@ -130,7 +130,7 @@ def test_runtime_options_preserve_independent_architectures():
 def test_cli_help_and_schema_are_cpu_supported():
     import subprocess
     import sys
-    script = str(ROOT / 'midtraining/native_kd.py')
+    script = str(ROOT / 'midtraining/training/native_kd.py')
     result = subprocess.run([sys.executable, script, '--help'], capture_output=True, text=True)
     assert result.returncode == 0
     assert '--reload-checkpoint' in result.stdout
@@ -144,7 +144,7 @@ def test_native_config_wiring_and_student_only_reload(monkeypatch, tmp_path):
     import sys
     import types
     runner = load_runner()
-    c = runner.load_config(ROOT / 'midtraining/pilot.yaml')
+    c = runner.load_config(ROOT / 'midtraining/configs/pilot.yaml')
     calls = []
 
     class Bag:
@@ -214,7 +214,7 @@ def test_native_runtime_is_audited_and_has_no_custom_training_loop():
     runner = load_runner()
     assert callable(runner.run_native)
     assert callable(runner.make_dataset_provider)
-    tree = ast.parse((ROOT / 'midtraining/native_kd.py').read_text())
+    tree = ast.parse((ROOT / 'midtraining/training/native_kd.py').read_text())
     calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
     pretrain = [n for n in calls if isinstance(n.func, ast.Name) and n.func.id == 'pretrain']
     assert len(pretrain) == 1
@@ -273,7 +273,7 @@ def test_flat_corpus_reader_never_cycles_training_and_explicitly_reuses_heldout(
     import numpy as np
     import pytest
     runner = load_runner()
-    c = copy.deepcopy(runner.load_config(ROOT / 'midtraining/pilot.yaml'))
+    c = copy.deepcopy(runner.load_config(ROOT / 'midtraining/configs/pilot.yaml'))
     c['sequence_length'] = 4
     c['train'].update(train_iters=2, global_batch_size=2)
     c['validation'].update(eval_iters=1, eval_global_batch_size=2)
@@ -312,7 +312,7 @@ def test_pilot_bounds_are_not_defined_by_mutable_default_file(monkeypatch, tmp_p
     import yaml
     import pytest
     runner = load_runner()
-    c = runner.load_config(ROOT / 'midtraining/pilot.yaml')
+    c = runner.load_config(ROOT / 'midtraining/configs/pilot.yaml')
     c['train']['train_iters'] = 4000
     mutated = tmp_path / 'pilot.yaml'
     mutated.write_text(yaml.safe_dump(c))

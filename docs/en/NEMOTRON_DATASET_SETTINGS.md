@@ -8,10 +8,10 @@ Policy snapshot: **2026-10-17**, after the accepted 16K pilot and pipeline-03 st
 
 Versionable interfaces:
 
-- [Current explicit 16K/48h trainer template](../../configs/posttraining/nemochat_baby_nemotron_sft_16k_48h.yaml): authoritative frozen execution input for pipeline-03; its calibration receipt and iteration estimate are deliberately null until real calibration.
-- [Deferred 128K plan](../../configs/posttraining/nemochat_baby_long_context_128k.plan.yaml): **plan only**, not a runnable trainer config.
-- [Dataset policy registry](../../configs/posttraining/nemotron_dataset_settings.yaml) (`nemochat-nemotron-dataset-settings-v1`), [validator](../../src/nemochat/data/sft_dataset_settings.py), and [inspection/preparation wrapper](../../scripts/posttraining/nemotron_dataset_settings.py). Delivered during this documentation pass; actual `--help`, default validation and module-level plan compilation passed without GPU use or weight reads.
-- [Actual normalization/preparation implementation](../../src/nemochat/data/nemotron_sft.py), [native adapter](../../scripts/posttraining/native_nemotron_sft.py), and [48h controller](../../scripts/posttraining/nemotron_48h_pipeline.py).
+- [Current explicit 16K/48h trainer template](../../sft/configs/nemochat_baby_nemotron_sft_16k_48h.yaml): authoritative frozen execution input for pipeline-03; its calibration receipt and iteration estimate are deliberately null until real calibration.
+- [Deferred 128K plan](../../sft/configs/nemochat_baby_long_context_128k.plan.yaml): **plan only**, not a runnable trainer config.
+- [Dataset policy registry](../../sft/configs/nemotron_dataset_settings.yaml) (`nemochat-nemotron-dataset-settings-v1`), [validator](../../src/nemochat/data/sft_dataset_settings.py), and [inspection/preparation wrapper](../../sft/data/nemotron_dataset_settings.py). Delivered during this documentation pass; actual `--help`, default validation and module-level plan compilation passed without GPU use or weight reads.
+- [Actual normalization/preparation implementation](../../src/nemochat/data/nemotron_sft.py), [native adapter](../../sft/training/native_nemotron_sft.py), and [48h controller](../../sft/training/nemotron_48h_pipeline.py).
 
 A new registry documents/validates settings against explicit configs and can be consumed by future invocations where wired. It does **not** retroactively become the source of pipeline-03, rewrite its immutable inputs, authorize a restart, or prove a previously launched process consumed it. Report registry validation separately from wrapper/plan consumption and actual native execution.
 
@@ -32,9 +32,9 @@ Active releases: **Agentic v4, Instruction-Following/Chat v4, BBQ v1** (six labe
 Run from the repository root (these commands validate/preview only):
 
 ```bash
-CUDA_VISIBLE_DEVICES='' .venv/bin/python scripts/posttraining/nemotron_dataset_settings.py --help
-CUDA_VISIBLE_DEVICES='' .venv/bin/python scripts/posttraining/nemotron_dataset_settings.py --check --json
-CUDA_VISIBLE_DEVICES='' .venv/bin/python scripts/posttraining/nemotron_dataset_settings.py --preview --stage deferred_long_context --json
+CUDA_VISIBLE_DEVICES='' .venv/bin/python sft/data/nemotron_dataset_settings.py --help
+CUDA_VISIBLE_DEVICES='' .venv/bin/python sft/data/nemotron_dataset_settings.py --check --json
+CUDA_VISIBLE_DEVICES='' .venv/bin/python sft/data/nemotron_dataset_settings.py --preview --stage deferred_long_context --json
 ```
 
 Default/`--check`/`--preview` are inert. The JSON contains validation and a stage-specific data plan; `native_training_argv` is null. Explicit `--raw` and fresh `--output` together can emit a producer command; `--write-plan` writes a fresh JSON plan only. Only `--execute-prepare` executes CPU preparation, and only in the already approved compatible cached CPU runtime; it is not a training/container launcher. No preparation execution is implied by the checks here. Local discovery/migration/reservation/audit evidence is required; a fresh clone without it must fail rather than invent metadata.
@@ -106,7 +106,7 @@ Checkpoint byte integrity remains `not_checked_explicit_user_waiver`: no weight 
 
 ## Deferred 128K CP/memory contract — not current production
 
-The [128K plan](../../configs/posttraining/nemochat_baby_long_context_128k.plan.yaml) sets `auto_launch: false`, `native_launch_ready: false`, `source_checkpoint: null` (await accepted final 16K SFT checkpoint) and `global_batch_size: null` (await future native calibration). It does not interrupt or change current 16K SFT. The current native adapter accepts only 4K/16K with CP1; passing this plan to it is not supported.
+The [128K plan](../../sft/configs/nemochat_baby_long_context_128k.plan.yaml) sets `auto_launch: false`, `native_launch_ready: false`, `source_checkpoint: null` (await accepted final 16K SFT checkpoint) and `global_batch_size: null` (await future native calibration). It does not interrupt or change current 16K SFT. The current native adapter accepts only 4K/16K with CP1; passing this plan to it is not supported.
 
 Plan candidates: eight physical GPUs, TP1/PP1, EP8 candidate, BF16, microbatch1; start conservatively at **CP8**, consider **[8, 4, 2]**, lower CP only after real memory/throughput proof; require **15% free-memory headroom after a real training step**. Verify pinned dense/expert grids and native Mamba CP partitioning independently; do not derive EP feasibility solely from dense DP arithmetic. CP1 pilot success does not validate any future CP candidate.
 

@@ -67,3 +67,7 @@ A local runtime migration must preserve payload bytes and inventory-relative pat
 On this host, the physical migration is recorded in `results/runtime-layout-migration.json`: 720 original files (72,960,623 bytes) retain their original SHA-256 hashes, and 147 moves have live relative compatibility links. Both preservation and logging changes passed independent readonly review. See `results/runtime-layout-verification.json` for real layout smoke evidence, including exact state equality after resuming a relocated WSD checkpoint.
 
 Experiment runner stdout/stderr are in repository-root `logs/experiments/<unique-id>/`, referenced by `result.log_directory`. Lens benchmark defaults to root `logs/nemo_lens/<output-name>/`, or explicit `--log-output`; result and log directories must be fresh and disjoint. W&B remains disabled by default and uses cwd-relative `logs/wandb` when enabled without an override. This layout task did not stage, commit or push any changes.
+
+## Canonical stage-owned source (2026-10-19)
+
+`pretraining/`, `midtraining/` (KD/continued pretraining only), `sft/`, `rl/` own stage source/configs/entrypoints. `datasets/` and `checkpoints/` remain payload-only. See [stage-layout mapping](STAGE_LAYOUT.md) and its original-blob manifest. Prior run paths in append-only journals are historical, not current source entrypoints. No operational RL trainer is claimed; native payloads and evidence remain in their original locations.

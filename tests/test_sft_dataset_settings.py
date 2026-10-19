@@ -87,7 +87,7 @@ def test_compiler_consumes_stage_and_emits_real_prepare_parser_flags(stage, leng
     output = 'results/pretraining/nemochat_baby/nemotron_sft/dataset_settings_code/not-created-by-preview'
     plan = mod.compile_plan(mod.load_settings(), stage, raw='datasets/nemotron_sft/nemochat_baby/raw-full-01', output=output)
     argv = plan['prepare_argv']
-    assert argv[:3] == [sys.executable, str(ROOT / 'scripts/posttraining/nemotron_sft.py'), 'prepare']
+    assert argv[:3] == [sys.executable, str(ROOT / 'sft/data/nemotron_sft.py'), 'prepare']
     assert argv[argv.index('--sequence-length')+1] == str(length)
     assert len(plan['active_datasets']) == active
     assert plan['excluded_datasets'] == excluded
@@ -111,7 +111,7 @@ def test_reserved_stage_has_no_preparation_command():
     assert plan['active_datasets'] == []
 
 
-@pytest.mark.parametrize('output', ['../escape', '/tmp/escape', 'configs/posttraining/nemotron_dataset_settings.yaml'])
+@pytest.mark.parametrize('output', ['../escape', '/tmp/escape', 'sft/configs/nemotron_dataset_settings.yaml'])
 def test_compile_rejects_unsafe_or_existing_output(output):
     from nemochat.data import sft_dataset_settings as mod
     assert hasattr(mod, 'compile_plan'), 'stage plan compiler missing'
@@ -122,10 +122,19 @@ def test_compile_rejects_unsafe_or_existing_output(output):
 def test_actual_wrapper_default_check_json_and_preview_do_not_write():
     import subprocess
     import sys
-    script = ROOT/'scripts/posttraining/nemotron_dataset_settings.py'
+    script = ROOT/'sft/data/nemotron_dataset_settings.py'
     assert script.exists(), 'consuming wrapper CLI missing'
+    from nemochat.data.sft_dataset_settings import load_settings
+    discovery_available = (ROOT / load_settings()['discovery']).is_dir()
     for args in ([], ['--check', '--json'], ['--preview', '--stage', 'deferred_long_context', '--json']):
         result = subprocess.run([sys.executable, str(script), *args], cwd=ROOT, capture_output=True, text=True)
+        if not discovery_available:
+            # A source-only checkout must reject absent historical evidence, not
+            # import an editable original checkout and falsely report readiness.
+            assert result.returncode != 0
+            assert 'local evidence unavailable' in result.stderr
+            assert not result.stdout.strip()
+            continue
         assert result.returncode == 0, result.stderr
         if '--json' in args:
             parsed = json.loads(result.stdout)
@@ -139,7 +148,7 @@ def test_wrapper_plan_write_is_fresh_and_cpu_execution_guard_is_fail_closed():
     import subprocess
     import sys
     import tempfile
-    script = ROOT/'scripts/posttraining/nemotron_dataset_settings.py'
+    script = ROOT/'sft/data/nemotron_dataset_settings.py'
     assert script.exists(), 'consuming wrapper CLI missing'
     parent = ROOT/'results/pretraining/nemochat_baby/nemotron_sft/dataset_settings_code'
     with tempfile.TemporaryDirectory(dir=parent) as temporary:
@@ -189,7 +198,7 @@ def test_actual_cli_rejects_mutated_temporary_registry_without_writes():
         settings['datasets'][3]['stage'] = 'current_sft'
         path.write_text(yaml.safe_dump(settings))
         plan = Path(temporary)/'not-created.json'
-        result = subprocess.run([sys.executable, str(ROOT/'scripts/posttraining/nemotron_dataset_settings.py'),
+        result = subprocess.run([sys.executable, str(ROOT/'sft/data/nemotron_dataset_settings.py'),
                                  '--config', str(path), '--check', '--write-plan', str(plan)],
                                 capture_output=True, text=True)
         assert result.returncode != 0 and 'stage mismatch' in result.stderr

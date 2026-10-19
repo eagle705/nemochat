@@ -8,7 +8,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-PACKAGE = ROOT / 'midtraining/offline2b/prefix/directio/transport.py'
+PACKAGE = ROOT / 'midtraining/cache/directio/transport.py'
 CACHE = ROOT / 'results/midtraining/offline2b-production1920-01/cache'
 
 
@@ -24,7 +24,7 @@ def tmp_path():
 
 def transport():
     assert PACKAGE.exists(), 'missing fail-closed O_DIRECT transport'
-    from midtraining.offline2b.prefix.directio import transport as module
+    from midtraining.cache.directio import transport as module
     return module
 
 
@@ -116,7 +116,7 @@ def test_native_source_guard_and_process_local_binding():
     node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'open_logit_file')
     ns = {'_msc_if_needed': lambda p: None}
     exec(compile(ast.Module(body=[node], type_ignores=[]), str(path), 'exec'), ns)
-    from midtraining.offline2b.prefix.directio import binding
+    from midtraining.cache.directio import binding
     module = types.SimpleNamespace(open_logit_file=ns['open_logit_file'], __file__=str(path))
     contract = binding.source_contract(path)
     m = transport(); p = CACHE / 'cp0_dp7__0.tar'
@@ -133,7 +133,7 @@ def test_native_source_guard_and_process_local_binding():
 
 
 def test_full_audit_manifest_coverage_and_override():
-    from midtraining.offline2b.prefix.directio import acceptance
+    from midtraining.cache.directio import acceptance
     manifest = acceptance.build_manifest()
     rows = manifest['shards']
     assert len(rows) == 9144
@@ -149,12 +149,12 @@ def test_full_audit_manifest_coverage_and_override():
 
 
 def test_gate_native_dataset_is_available():
-    path = ROOT / 'midtraining/offline2b/prefix/directio/cpu_gate.py'
+    path = ROOT / 'midtraining/cache/directio/cpu_gate.py'
     assert path.exists(), 'missing exact-image all-shard native CPU gate'
 
 
 def test_opt_in_integration_rejects_unbound_manifest():
-    from midtraining.offline2b.prefix.directio import integration
+    from midtraining.cache.directio import integration
     path = ROOT / 'results/midtraining/offline1920-parent-01/directio-acceptance-01/expectations.json'
     data = path.read_bytes()
     with pytest.raises(RuntimeError): integration.load_transport(path, '0' * 64)
@@ -165,7 +165,7 @@ def test_opt_in_integration_rejects_unbound_manifest():
 
 
 def test_manifest_rank_to_filename_mapping_cannot_be_swapped(tmp_path):
-    from midtraining.offline2b.prefix.directio import integration
+    from midtraining.cache.directio import integration
     path = ROOT / 'results/midtraining/offline1920-parent-01/directio-acceptance-01/expectations.json'
     manifest = json.loads(path.read_text())
     manifest['shards'][0]['rank'], manifest['shards'][1]['rank'] = manifest['shards'][1]['rank'], manifest['shards'][0]['rank']
@@ -211,14 +211,14 @@ def test_fork_waits_for_direct_fd_and_mapping_to_close(tmp_path, monkeypatch):
 
 
 def test_activate_requires_opt_in():
-    from midtraining.offline2b.prefix.directio.integration import activate
+    from midtraining.cache.directio.integration import activate
     with pytest.raises(RuntimeError, match='opt-in'):
         activate(None, '/not/read', '0' * 64)
 
 
 def test_activate_real_original_native_opener_opt_in():
     import ast, types
-    from midtraining.offline2b.prefix.directio.integration import activate
+    from midtraining.cache.directio.integration import activate
     path = ROOT / 'results/midtraining/offline1920-parent-01/directio-acceptance-01/expectations.json'
     data = path.read_bytes(); manifest = json.loads(data)
     source = Path(manifest['native_source'])

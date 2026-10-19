@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 def module():
-    path = ROOT/'midtraining/offline2b/prefix/dynamic/broker.py'
+    path = ROOT/'midtraining/training/offline_kd/prefix/dynamic/broker.py'
     if not path.exists():
         return None
     spec = importlib.util.spec_from_file_location('dynamic_broker_test', path)
@@ -102,7 +102,7 @@ class ReaderContractTest(unittest.TestCase):
         import sys
         sys.path.insert(0,str(ROOT))
         try:
-            from midtraining.offline2b.prefix.dynamic.reader import DynamicDataset
+            from midtraining.training.offline_kd.prefix.dynamic.reader import DynamicDataset
         except ImportError:
             self.fail('verified synchronous native reader is not implemented')
         m=module();gather=lambda row:[dict(row,rank=r) for r in range(8)]

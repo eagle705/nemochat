@@ -4,11 +4,11 @@ from pathlib import Path
 import tempfile
 import unittest
 import torch
-from midtraining.offline2b.ablation_lm_only.objective import coefficient_matched_loss
-from midtraining.offline2b.ablation_lm_only.replay import Replay, ReplayDataset, digest, validate_mapping
+from midtraining.training.offline_kd.ablation_lm_only.objective import coefficient_matched_loss
+from midtraining.training.offline_kd.ablation_lm_only.replay import Replay, ReplayDataset, digest, validate_mapping
 
 ROOT=Path(__file__).resolve().parents[1]
-HERE=ROOT/'midtraining/offline2b/ablation_lm_only'
+HERE=ROOT/'midtraining/training/offline_kd/ablation_lm_only'
 C=ROOT/'results/midtraining/offline2b-prefixtrain-1000-01'
 
 class LMOnly(unittest.TestCase):
@@ -84,7 +84,7 @@ class LMOnly(unittest.TestCase):
         self.assertNotIn('optimizer.step(',n)
         self.assertNotIn('decode_logprobs',n)
         self.assertIn('LM_COEFFICIENT = 0.5',o)
-        self.assertIn('masked_next_token_loss', (ROOT/'midtraining/offline2b/ablation_lm_only/README.md').read_text())
+        self.assertIn('masked_next_token_loss', (ROOT/'midtraining/training/offline_kd/ablation_lm_only/README.md').read_text())
         for token in ['most_recent_k=3','save_optim=True,save_rng=True','if step==16:ctx.state.cfg.checkpoint.save_interval=64','lr_warmup_iters=C[\'warmup_iters\']']:
             self.assertIn(token,n)
 

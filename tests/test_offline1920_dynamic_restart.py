@@ -5,7 +5,7 @@ import pathlib
 import unittest
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
-HERE=ROOT/'midtraining/offline2b/prefix/dynamic/restart01'
+HERE=ROOT/'midtraining/training/offline_kd/prefix/dynamic/restart01'
 
 class RestartContract(unittest.TestCase):
     def test_fresh_generation_native_entrypoint_checkpoint_and_retention(self):

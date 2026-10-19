@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_registry_adapter_is_isolated_and_receives_native_audit_helpers(monkeypatch):
-    spec = importlib.util.spec_from_file_location('observer_parent', ROOT/'midtraining/longrun_native.py')
+    spec = importlib.util.spec_from_file_location('observer_parent', ROOT/'midtraining/training/longrun_native.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     calls = []
@@ -32,7 +32,7 @@ def test_registry_adapter_is_isolated_and_receives_native_audit_helpers(monkeypa
 def test_owned_engine_allows_inherited_image_labels_but_not_foreign_ownership():
     import copy
     import pytest
-    spec = importlib.util.spec_from_file_location('ownership_parent', ROOT/'midtraining/launch_longrun.py')
+    spec = importlib.util.spec_from_file_location('ownership_parent', ROOT/'midtraining/training/launch_longrun.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     labels = {'nemochat.stage': 'midtraining-longrun', 'nemochat.run': 'fresh-01',

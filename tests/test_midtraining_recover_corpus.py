@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT/'midtraining/recover_corpus.py'
+SCRIPT = ROOT/'midtraining/data/recover_corpus.py'
 
 
 def module():
@@ -284,7 +284,10 @@ def test_approved_config_uses_exact_native_surplus_budget():
         m.validate_config(config)
 
 
-def test_history_pins_frozen_source_not_mutated_live_native(tmp_path,monkeypatch):
+@pytest.mark.parametrize('fault', [None, 'snapshot_hash', 'snapshot_bytes',
+                                  'relocated_history', 'missing_snapshot',
+                                  'producer_pin', 'historical_skip', 'parts_binding'])
+def test_history_pins_frozen_source_not_mutated_live_native(tmp_path,monkeypatch,fault):
     m = module()
     p = m.producer()
     def pin(name,value):
@@ -293,7 +296,12 @@ def test_history_pins_frozen_source_not_mutated_live_native(tmp_path,monkeypatch
         path.write_text(json.dumps(value))
         return dict(path=str(path),sha256=p.file_digest(path))
     snapshots,old_files = {},{}
-    for name in m.HISTORY_FILES:
+    # Handwritten portable history, not the real production receipt chain.
+    # Literal pre-migration identifiers must not follow the active source layout.
+    for name in ('midtraining/production_corpus.py', 'midtraining/production_corpus.yaml',
+                 'midtraining/prepare_corpus.py', 'midtraining/corpus.yaml',
+                 'midtraining/longrun_native.py',
+                 'results/pretraining/nemochat_baby/climbmix/corpus_sdk.py'):
         entry = pin('snapshot/'+name,dict(historical=name))
         snapshots[name] = entry
         old_files[name] = entry['sha256']
@@ -307,12 +315,41 @@ def test_history_pins_frozen_source_not_mutated_live_native(tmp_path,monkeypatch
     review = dict(origin_failure=failure_pin,origin_review=pin('old_review.json',source_review),
         origin_catalog=dict(path=str(tmp_path/'catalog.sqlite'),sha256='a'*64),origin_snapshot=snapshots,
         origin_parts=pin('parts.json',parts))
-    origin,old,receipt = m.verify_history(review,lambda:None)
-    assert origin['phase'] == 'failed'
-    assert old == source_review
-    review['origin_snapshot']['midtraining/longrun_native.py']['sha256'] = '0'*64
-    with pytest.raises(ValueError,match='snapshot'):
-        m.verify_history(review,lambda:None)
+    # Active allowlist remains relocated and cannot replace historical keys.
+    assert set(m.SOURCE_FILES) == {
+        'midtraining/data/production_corpus.py', 'midtraining/configs/production_corpus.yaml',
+        'midtraining/data/prepare_corpus.py', 'midtraining/configs/corpus.yaml',
+        'midtraining/training/longrun_native.py',
+        'results/pretraining/nemochat_baby/climbmix/corpus_sdk.py'}
+    assert set(m.REVIEW_FILES) == set(m.SOURCE_FILES) | {
+        'midtraining/data/recover_corpus.py', 'midtraining/configs/recovery_mix67.yaml'}
+    if fault == 'snapshot_hash':
+        review['origin_snapshot']['midtraining/longrun_native.py']['sha256'] = '0'*64
+    elif fault == 'snapshot_bytes':
+        Path(snapshots['midtraining/longrun_native.py']['path']).write_text('changed')
+    elif fault == 'relocated_history':
+        snapshots['midtraining/training/longrun_native.py'] = snapshots.pop('midtraining/longrun_native.py')
+    elif fault == 'missing_snapshot':
+        snapshots.pop('midtraining/longrun_native.py')
+    elif fault in ('producer_pin', 'historical_skip'):
+        if fault == 'producer_pin':
+            failure['source_code_sha256'] = '0'*64
+        else:
+            failure['counts']['oversized_documents'] = 1
+        review['origin_failure'] = pin('failure.json',failure)
+    elif fault == 'parts_binding':
+        parts['origin_failure_sha256'] = '0'*64
+        review['origin_parts'] = pin('parts.json',parts)
+    before = {path: path.read_bytes() for path in tmp_path.rglob('*') if path.is_file()}
+    if fault is None:
+        origin,old,receipt = m.verify_history(review,lambda:None)
+        assert origin['phase'] == 'failed'
+        assert old == source_review
+        assert receipt == parts
+    else:
+        with pytest.raises(ValueError):
+            m.verify_history(review,lambda:None)
+    assert {path: path.read_bytes() for path in before} == before
 
 
 def test_cli_preview_and_denied_execution_are_inert(tmp_path):
@@ -353,6 +390,39 @@ def test_review_schema_is_exact_before_origin_payload_reads():
     files = {name:m.producer().file_digest(ROOT/name) for name in m.REVIEW_FILES}
     with pytest.raises(ValueError,match='review schema'):
         m.verify_review(m.load_config(),dict(approved=True,files=files,schema_version=2),lambda:None)
+
+
+@pytest.mark.parametrize('fault', [None, 'historical_paths', 'missing', 'extra', 'tampered'])
+def test_relocated_active_dependencies_are_independently_fail_closed(tmp_path,monkeypatch,fault):
+    m = module()
+    p = m.producer()
+    # Handwritten dependency bytes exercise pinning only, never native SDK execution.
+    for name in m.REVIEW_FILES:
+        path = tmp_path/name
+        path.parent.mkdir(parents=True,exist_ok=True)
+        path.write_text('# handwritten active dependency: '+name+'\n')
+    monkeypatch.setattr(p,'ROOT',tmp_path)
+    files = {name:p.file_digest(tmp_path/name) for name in m.REVIEW_FILES}
+    if fault == 'historical_paths':
+        files = {name:'a'*64 for name in m.HISTORY_FILES}
+    elif fault == 'missing':
+        files.pop('midtraining/data/production_corpus.py')
+    elif fault == 'extra':
+        files['midtraining/production_corpus.py'] = 'a'*64
+    elif fault == 'tampered':
+        files['midtraining/data/production_corpus.py'] = '0'*64
+    review = dict(schema_version=1,approved=True,files=files,
+        **{key:{} for key in ('origin_failure','origin_catalog','origin_review',
+            'origin_parts','origin_snapshot','full_reservations','raw_verification','calibration')})
+    def stop_before_payloads(config):
+        raise RuntimeError('active pins accepted; stop before historical/payload reads')
+    monkeypatch.setattr(m,'validate_config',stop_before_payloads)
+    if fault is None:
+        with pytest.raises(RuntimeError,match='active pins accepted'):
+            m.verify_review({},review,lambda:None)
+    else:
+        with pytest.raises(ValueError,match='SHA256 mismatch' if fault == 'tampered' else 'allowlist'):
+            m.verify_review({},review,lambda:None)
 
 
 def test_review_requires_exact_fresh_dependencies_before_any_payload_reads():

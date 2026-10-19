@@ -15,7 +15,7 @@ def test_generation03_execution_contract_is_explicit_not_legacy():
     c = p.execution_contract('03')
     assert c['sequence_length'] == 16384
     assert c['excluded_datasets'] == [LONG]
-    assert c['production_template'] == Path('configs/posttraining/nemochat_baby_nemotron_sft_16k_48h.yaml')
+    assert c['production_template'] == Path('sft/configs/nemochat_baby_nemotron_sft_16k_48h.yaml')
     assert c['calibration_template'] == p.BASE / 'seq16k_protocol/calibration.yaml'
     assert c['calibration_max_hours'] == 1
     assert p.execution_contract('02')['sequence_length'] == 4096
@@ -23,7 +23,7 @@ def test_generation03_execution_contract_is_explicit_not_legacy():
     p.configure_generation('03')
     paths = p.reviewed_input_paths()
     assert c['production_template'] in paths and c['calibration_template'] in paths
-    assert Path('configs/posttraining/nemochat_baby_nemotron_sft_48h.yaml') not in paths
+    assert Path('sft/configs/nemochat_baby_nemotron_sft_48h.yaml') not in paths
     assert p.SDK_GUARD in paths
     assert p.BASE / 'cpu-full-01/acquisition-completed.json' in paths
     assert Path('datasets/nemotron_sft/nemochat_baby/prepared-pilot-01/data/heldout-dialogues.jsonl') in paths
@@ -296,11 +296,11 @@ def test_generation03_parent_start_script_real_guard_and_inert_systemd_substitut
     monkeypatch.setattr(p, 'ROOT', tmp_path)
     monkeypatch.setattr(p, 'PYTHON', Path(sys.executable))
     paths = p.reviewed_start_paths()
-    source = ROOT / 'scripts/posttraining/nemotron_48h_pipeline.py'
+    source = ROOT / 'sft/training/nemotron_48h_pipeline.py'
     for path in paths:
         target = tmp_path / path
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(source.read_text() if path == Path('scripts/posttraining/nemotron_48h_pipeline.py') else 'Handwritten CPU fixture')
+        target.write_text(source.read_text() if path == Path('sft/training/nemotron_48h_pipeline.py') else 'Handwritten CPU fixture')
     script = tmp_path / p.OUT / 'start-parent-reviewed.sh'
     script.parent.mkdir(parents=True, exist_ok=True)
     script.write_text(p.parent_start_script())

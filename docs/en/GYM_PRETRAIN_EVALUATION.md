@@ -4,7 +4,7 @@ For new CLI runs, use repository-root paths and fresh artifacts; see [runtime la
 
 ## What is implemented (and what is not)
 
-`scripts/gym_eval.py` is a **result importer and paired comparison**, not a new benchmark runner or scorer. Run the official Gym evaluator separately, then import its numeric metrics and original JSONL rollout artifacts. It makes no model requests, purchases no judge calls, downloads no datasets, and does not convert failed inference into incorrect answers. Existing CE/BPB and CORE diagnostics remain unchanged: use `scripts/base_eval.py` alongside this evaluation, not in place of it.
+`rl/evaluation/gym_eval.py` is a **result importer and paired comparison**, not a new benchmark runner or scorer. Run the official Gym evaluator separately, then import its numeric metrics and original JSONL rollout artifacts. It makes no model requests, purchases no judge calls, downloads no datasets, and does not convert failed inference into incorrect answers. Existing CE/BPB and CORE diagnostics remain unchanged: use `scripts/base_eval.py` alongside this evaluation, not in place of it.
 
 The source pin is **NVIDIA-NeMo/Gym**, commit `804c12a7d56a151a98ae150a352350e3c856ba47`. `NVIDIA/NeMo-Gym` is not the authoritative repository. Immutable sources:
 
@@ -62,7 +62,7 @@ Official aggregation calls each environment/resource server's `/aggregate_metric
 
 ## Manifest and importer CLI
 
-`configs/eval/gym_pretrain.json` deliberately has no runs: it must fail instead of inventing results. Copy it to the run artifact directory and supply one record for **each step × task × raw/merged variant**. Paths are relative to the manifest, or absolute. Example schema (placeholders, NOT results):
+`rl/configs/gym_pretrain.json` deliberately has no runs: it must fail instead of inventing results. Copy it to the run artifact directory and supply one record for **each step × task × raw/merged variant**. Paths are relative to the manifest, or absolute. Example schema (placeholders, NOT results):
 
 ```json
 {
@@ -88,7 +88,7 @@ Duplicate for `merged`, changing only variant-specific weights, rollouts and met
 `protocol.json` must contain `generation`, `context_length`, `prompt_mode`, `scorer`, `scope`, `runtime`, and `wsm`. Record all generation settings (seed policy, temperature, top-p, output limits, stop policy), actual context/BOS/truncation behavior, prompt formatting, official scorer settings, full versus capped dataset scope, runtime versions and precision. `wsm` is the shared merge policy: checkpoint window, constituent weight hashes, normalized coefficients and causal availability cutoff. Use the same policy record for raw and merged, even though only merged weights apply it. Protocol is hashed byte-for-byte; key formatting differences also reject a pair. A capped input is a partial task result; never label it a full leaderboard evaluation.
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/gym_eval.py \
+PYTHONPATH=src .venv/bin/python rl/evaluation/gym_eval.py \
   --manifest results/gym/my-run/manifest.json \
   --gym-root /absolute/pinned/Gym \
   --output results/gym/my-run/gym_comparison.json

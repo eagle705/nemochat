@@ -67,3 +67,7 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 현재 호스트의 이동 내역은 `results/runtime-layout-migration.json`에 있다. 기존 720개 파일(72,960,623 bytes)의 SHA-256이 모두 일치하며 147개 이동에 대한 상대 호환 링크가 정상이다. 보존 여부와 로그 경로 변경은 독립 readonly 재검토 PASS. `results/runtime-layout-verification.json`에는 옮긴 WSD checkpoint 재개 후 정확한 상태 일치 등 실제 실행 증거를 기록했다.
 
 실험 runner의 stdout/stderr는 저장소 루트 `logs/experiments/<unique-id>/`에 기록하고 `result.log_directory`로 참조한다. Lens benchmark는 루트 `logs/nemo_lens/<output-name>/` 또는 명시적 `--log-output`을 사용하며 결과·로그 디렉터리는 새 경로이고 서로 겹치면 안 된다. W&B는 기본 disabled이며 활성화 후 별도 override가 없으면 CWD-relative `logs/wandb`를 사용한다. 이번 경로 변경은 stage·commit·push하지 않았다.
+
+## 2026-10-19 단계별 정리
+
+소스는 최상위 pretraining/midtraining/sft/rl로 분리합니다. midtraining에는 KD/계속 사전학습만 있으며 SFT는 별도 최상위 폴더입니다. 기존 데이터/체크포인트/실행 증거는 이동하거나 덮어쓰지 않습니다. [단계별 경로 명세](STAGE_LAYOUT.md)를 확인하세요. RL 학습기가 구현되었다는 뜻은 아닙니다.

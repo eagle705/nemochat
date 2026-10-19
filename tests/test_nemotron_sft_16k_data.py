@@ -54,7 +54,7 @@ def test_explicit_exclusion_skips_even_short_long_context_rows_and_preserves_res
 
 def test_prepare_cli_exposes_explicit_sequence_and_dataset_policy():
     import subprocess, sys
-    result = subprocess.run([sys.executable, 'scripts/posttraining/nemotron_sft.py', 'prepare', '--help'], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, 'sft/data/nemotron_sft.py', 'prepare', '--help'], capture_output=True, text=True)
     assert result.returncode == 0
     assert '--sequence-length' in result.stdout
     assert '--exclude-dataset' in result.stdout

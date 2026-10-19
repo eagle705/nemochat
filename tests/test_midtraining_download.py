@@ -21,7 +21,7 @@ def restore_downloader_environment():
 
 
 def module():
-    return importlib.import_module("midtraining.download_teacher")
+    return importlib.import_module("midtraining.data.download_teacher")
 
 
 def metadata():
@@ -187,7 +187,7 @@ def test_downloader_fails_closed_without_network(tmp_path, monkeypatch, unsafe):
 def test_cli_help_and_reject_bad_metadata_without_network(tmp_path):
     import subprocess
     import sys
-    script = ROOT / "midtraining/download_teacher.py"
+    script = ROOT / "midtraining/data/download_teacher.py"
     help_result = subprocess.run([sys.executable, str(script), "--help"], text=True, capture_output=True)
     assert help_result.returncode == 0
     assert all(flag in help_result.stdout for flag in ("--metadata", "--output", "--receipt-dir"))
@@ -274,7 +274,7 @@ def test_installed_hub_fresh_import_uses_raid_caches_without_transfer(tmp_path):
     code = '''
 import hashlib, sys
 from pathlib import Path
-from midtraining import download_teacher as d
+from midtraining.data import download_teacher as d
 root = Path(sys.argv[1])
 d.RAID_ROOT = root
 output = root / "output"

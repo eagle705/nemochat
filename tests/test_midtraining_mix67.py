@@ -12,7 +12,7 @@ OLD_PROFILE_SHA = '52d0d44fce30ea1737396fad9b2d95c3040835769eaa089df1d9bfa1f1d1e
 
 def test_versioned_config_freezes_approved_budget_with_honest_profile_label():
     m = module()
-    c = m.load_config(ROOT/'midtraining/longrun24h.mix67.yaml')
+    c = m.load_config(ROOT/'midtraining/configs/longrun24h.mix67.yaml')
     assert c['name'] == c['logger']['wandb_exp_name'] == 'nemochat baby midtraining super35 24h'
     assert m.dataset_weights(c) == NEW
     assert c['train']['train_iters'] == 3200
@@ -29,15 +29,15 @@ def test_versioned_config_freezes_approved_budget_with_honest_profile_label():
     assert frozen['projection']['fresh_new_mix_benchmark'] is False
     assert frozen['projection']['actual_new_main_warm_steps_pending'] is True
     launcher = module('launch_longrun')
-    assert 'midtraining/longrun24h.mix67.yaml' in launcher.SOURCES
-    assert 'midtraining/longrun24h.yaml' in launcher.SOURCES
+    assert 'midtraining/configs/longrun24h.mix67.yaml' in launcher.SOURCES
+    assert 'midtraining/configs/longrun24h.yaml' in launcher.SOURCES
 
 
 def test_execute_checks_projection_before_any_training_side_effect(monkeypatch, tmp_path):
     from types import SimpleNamespace
     launcher = module('launch_longrun')
     m = module()
-    cpath = ROOT/'midtraining/longrun24h.mix67.yaml'
+    cpath = ROOT/'midtraining/configs/longrun24h.mix67.yaml'
     manifest = prepared(tmp_path/'pairs', tokens=2_000_000_000)['result']
     manifest['weights'] = dict(zip(m.KEYS, NEW))
     target = 'b'*64
@@ -119,7 +119,7 @@ def test_actual_observer_receipt_keeps_new_weights_and_one_epoch(monkeypatch):
     import numpy as np
     from types import ModuleType, SimpleNamespace
     m = module()
-    c = m.load_config(ROOT/'midtraining/longrun24h.mix67.yaml')
+    c = m.load_config(ROOT/'midtraining/configs/longrun24h.mix67.yaml')
     class GPT: pass
     config = ModuleType('megatron.bridge.training.config')
     config.GPTDatasetConfig = GPT
@@ -152,7 +152,7 @@ def test_native_builder_and_observer_use_actual_mix(monkeypatch, tmp_path):
     import sys
     from types import ModuleType, SimpleNamespace
     m = module()
-    c = m.load_config(ROOT/'midtraining/calibration.yaml')
+    c = m.load_config(ROOT/'midtraining/configs/calibration.yaml')
     c['dataset']['weights'] = list(NEW)
     c['checkpoint_save'] = 'checkpoints/midtraining/fixture'
     manifest = prepared(tmp_path)['result']
@@ -230,7 +230,7 @@ def test_loader_rejects_failed_nested_companion_and_nonmap_weights(tmp_path):
 
 def test_approved_mix_config_capacity_and_exact_manifest_match(tmp_path):
     m = module()
-    c = m.load_config(ROOT/'midtraining/longrun24h.yaml')
+    c = m.load_config(ROOT/'midtraining/configs/longrun24h.yaml')
     c['dataset']['weights'] = list(NEW)
     m.validate_config(c)
     manifest = prepared(tmp_path, tokens=2_000_000_000)['result']

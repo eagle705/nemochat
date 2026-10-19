@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 
 def test_global_gap_dataset_and_cursor_contract():
-    m=importlib.import_module('midtraining.offline2b.prefix.filtered.mapping')
+    m=importlib.import_module('midtraining.training.offline_kd.prefix.filtered.mapping')
     p=m.plan()
     assert len(p['logical_to_physical'])==1138
     assert p['logical_to_physical'][85:88]==[85,87,88]
@@ -26,8 +26,8 @@ def test_global_gap_dataset_and_cursor_contract():
     with pytest.raises(IndexError): ds[len(ds)]
 
 def test_reader_sparse_physical_selection_and_decode_mapping():
-    from midtraining.offline2b.prefix.filtered.reader import select_urls,remap_decoded
-    from midtraining.offline2b.prefix.filtered.mapping import PHYSICAL
+    from midtraining.training.offline_kd.prefix.filtered.reader import select_urls,remap_decoded
+    from midtraining.training.offline_kd.prefix.filtered.mapping import PHYSICAL
     urls=[f'/cache/cp0_dp0__{i}.tar' for i in range(1143)]
     chosen=select_urls(urls,set(),86)
     assert chosen[0]=='/cache/cp0_dp0__87.tar'
@@ -40,7 +40,7 @@ def test_reader_sparse_physical_selection_and_decode_mapping():
     assert select_urls(urls,set(urls),0)==[]
 
 def test_transport_new_sha_failure_has_observed_evidence():
-    from midtraining.offline2b.prefix.filtered.transport import DirectTransport,expectation
+    from midtraining.training.offline_kd.prefix.filtered.transport import DirectTransport,expectation
     import tempfile,hashlib,pytest
     with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]/'results/midtraining/offline2b-prefixtrain-filtered-01') as d:
         f=Path(d)/'cp0_dp0__0.tar';f.write_bytes(b'a'*4096)

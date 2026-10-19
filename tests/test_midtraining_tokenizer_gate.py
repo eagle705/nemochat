@@ -27,7 +27,7 @@ def test_reserved_alias_gate_reuses_exact_accepted_migration(tmp_path):
     assert result['migration_reused'] is True
     assert result['ordinary_text_ids_equal'] is True
     assert result['weight_permutation_performed'] is False
-    native_spec = importlib.util.spec_from_file_location('native_kd', ROOT / 'midtraining/native_kd.py')
+    native_spec = importlib.util.spec_from_file_location('native_kd', ROOT / 'midtraining/training/native_kd.py')
     native = importlib.util.module_from_spec(native_spec); native_spec.loader.exec_module(native)
     assert native.tokenizer_gate(root / 'student', root / 'teacher')['migration_reused']
     adopted['model']['vocab']['a'], adopted['model']['vocab']['b'] = adopted['model']['vocab']['b'], adopted['model']['vocab']['a']

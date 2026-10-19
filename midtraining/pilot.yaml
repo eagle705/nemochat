@@ -1,0 +1,76 @@
+# Native, bounded model-only BASE warmstart; optimizer/RNG reset, not resume.
+# Same raw ClimbMix corpus is intentionally repeated after BASE pretraining.
+# ModelOpt dynamically balances: LM + .5 * KD * stopgrad(LM/KD), not raw .5 KL.
+name: nemochat baby super35 LM+KD pilot
+student_hf: checkpoints/exports/nemochat_baby_base_hf_bf16_02
+student_native_lineage: results/pretraining/nemochat_baby/training/runs/baby-main-01/checkpoint/iter_0019074
+teacher_hf: checkpoints/teachers/nemotron35-super-base/4ba52e8ffa79e9693936c1a819ac89f551ceeef6-text
+teacher_repo: nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-Base-BF16
+teacher_revision: 4ba52e8ffa79e9693936c1a819ac89f551ceeef6
+checkpoint_integrity: not_checked_explicit_user_waiver
+checkpoint_save: checkpoints/midtraining/super35-kd-pilot-01
+sequence_length: 4096
+vocab_size: 131072
+world_size: 8
+parallel:
+  tensor_model_parallel_size: 1
+  pipeline_model_parallel_size: 1
+  context_parallel_size: 1
+  expert_model_parallel_size: 8
+  expert_tensor_parallel_size: 1
+  sequence_parallel: false
+train:
+  train_iters: 4
+  micro_batch_size: 1
+  global_batch_size: 8
+  exit_duration_in_mins: 120
+optimizer:
+  lr: 0.00001
+  min_lr: 0.000001
+  weight_decay: 0.01
+  bf16: true
+  use_distributed_optimizer: true
+  overlap_param_gather: false
+  clip_grad: 1.0
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_eps: 0.00000001
+ddp:
+  grad_reduce_in_fp32: true
+  overlap_grad_reduce: false
+  use_distributed_optimizer: true
+  overlap_param_gather: false
+  average_in_collective: false
+scheduler:
+  lr_decay_style: WSD
+  lr_wsd_decay_style: linear
+  lr_decay_iters: 4
+  lr_warmup_iters: 1
+  lr_wsd_decay_iters: 1
+  start_weight_decay: 0.01
+  end_weight_decay: 0.01
+  weight_decay_incr_style: constant
+  use_checkpoint_opt_param_scheduler: false
+kd:
+  skip_lm_loss: false
+  intermediate_layer_pairs: []
+  kd_loss_scale: 0.5
+  logit_kl_temperature: 1.0
+  logit_kl_topk: null
+dataset:
+  train_prefix: datasets/climbmix/nemochat_baby/native-02/train/corpus
+  validation_prefix: datasets/climbmix/nemochat_baby/native-02/validation/corpus
+  repeat_from_pretraining: true
+  num_workers: 0
+logger:
+  log_interval: 1
+  wandb_project: null
+  wandb_entity: null
+  wandb_exp_name: null
+validation:
+  eval_iters: 1
+  eval_interval: 4
+  eval_global_batch_size: 8
+  eval_micro_batch_size: 1
+rng:
+  seed: 43

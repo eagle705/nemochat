@@ -1,0 +1,2 @@
+# Fresh BASE → 1000 accepted native calls
+Original full Source C sampler and 3662-step WSD remain unchanged. Model-only BASE19074, optimizer/RNG/cursor reset. Existing finite cache physical 0..1142; historical all-rank exclusions 18,20,86,98,121,122,126. Runtime pre-forward data rejection advances physical cursor only. Full native optimizer/RNG save at 16, then 64/128/... and final accepted cap or exhaustion; most_recent_k=3. No teacher launch or checkpoint payload SHA audit (explicit waiver). Source input read-fault quarantine is not a host repair.

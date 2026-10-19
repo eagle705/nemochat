@@ -1,0 +1,13 @@
+# Preserve the measured aggregate CSV's bytes; CRLF is not trailing whitespace.
+docs/assets/offline-kd-first64/metrics.csv -text whitespace=cr-at-eol
+
+# Preserve exact upstream license bytes, including upstream trailing spaces.
+dashboard/static/FONT-OFL.txt whitespace=-blank-at-eol
+midtraining/patches/offline_kd_pr/licenses/Megatron-LM-LICENSE.txt whitespace=-blank-at-eol
+
+# Historical source freezes: preserve their existing extra EOF newline.
+# Do not mass-format or change source hashes to satisfy cosmetic checks.
+midtraining/download_teacher.py whitespace=-blank-at-eof
+midtraining/offline2b/prefix/contract.py whitespace=-blank-at-eof
+midtraining/recover_corpus.py whitespace=-blank-at-eof
+midtraining/run_production.py whitespace=-blank-at-eof

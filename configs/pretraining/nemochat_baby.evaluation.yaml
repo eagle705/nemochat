@@ -1,0 +1,57 @@
+# Evaluation design for the requested long pretraining run.
+# This is a project configuration draft, NOT a directly executable lm_eval CLI config.
+experiment:
+  name: "nemochat baby"
+  stage: pretraining
+  planned_wall_time_seconds: 345600
+  status: draft_not_launched
+
+evaluation:
+  continuous:
+    backend: native_megatron_bridge
+    metrics: [validation_loss, perplexity]
+    split: heldout_climbmix
+    exclude_from_training: true
+    interval_steps: null  # Resolve from the actual training calibration.
+  checkpoint_benchmarks:
+    framework: lm_evaluation_harness
+    model_backend: nemochat_native_hybrid_adapter
+    adapter_status: implementation_and_runtime_validation_required
+    tasks: [hellaswag, arc_easy, winogrande]
+    num_fewshot: 0
+    apply_chat_template: false
+    seed: 42
+    fixed_subset: true
+    every_hours: 6
+    examples_per_task: 256
+    full_split_every_hours: 24
+    metrics: task_native_acc_and_acc_norm
+    execution: sequential_on_existing_8_gpus
+    pause_training_at_safe_boundary: true
+    restore_training_rng_and_mode: true
+    max_time_budget_seconds: null  # Set after measured evaluator throughput.
+  environment_benchmarks:
+    framework: nemo_gym
+    enabled_during_pretraining: false
+    purpose: later_generation_reasoning_code_and_tool_evaluation
+    use_heldout_tasks: true
+    reuse_training_mbpp_601_602_as_quality_benchmark: false
+  checkpoint_byte_verification:
+    sha256: false
+    crc: false
+    direct_read: false
+    policy: not_checked_explicit_user_waiver
+  reporting:
+    wandb_run_name: "nemochat baby"
+    include_training_step: true
+    include_consumed_tokens: true
+    include_task_revision_and_prompt_policy: true
+    include_evaluation_duration: true
+    distinguish_subset_from_full_scores: true
+
+preflight_notes:
+  training_started: false
+  four_day_training_launcher: not_yet_prepared
+  prepared_train_tokens_at_inspection: 2000000
+  corpus_expansion_and_long_run_training_configuration: required
+  native_checkpoint_is_not_automatically_hf_or_vllm_loadable: true

@@ -1,0 +1,2 @@
+# BASE 처음부터 accepted native 1000회
+원본 Source C 전체 sampler 및 3662-step WSD를 유지합니다. BASE19074 model-only 초기화, optimizer/RNG/cursor 초기화. 기존 cache physical 0..1142만 1회 사용하며 18,20,86,98,121,122,126은 모든 rank에서 과거 오류로 제외합니다. 신규 DATA 오류는 모든 rank의 forward 전에 동기화하여 제외하며 optimizer/LR은 전진하지 않습니다. 16 및 64/128/...와 최종 실제 횟수에서 native full-state 저장, most_recent_k=3. Teacher 추가 실행 없음, model payload SHA 검사는 명시적 면제입니다. 입력 read fault 제외가 호스트 수리를 의미하지 않습니다.

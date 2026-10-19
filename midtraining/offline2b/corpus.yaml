@@ -1,0 +1,30 @@
+schema_version: 1
+purpose: offline2b-unique-source-capacity-and-preparation
+cycling: false
+budget:
+  train_iters: 3815
+  global_batch_size: 128
+  sequence_length: 4096
+  processed_tokens: 2000158720
+  cycling: false
+  weights:
+    code_concepts: 0.67
+    algorithmic: 0.10
+    formal_logic: 0.03
+    climbmix_replay: 0.20
+  train_tokens:
+    code_concepts: 1346818049
+    algorithmic: 201027585
+    formal_logic: 60317697
+    climbmix_replay: 402042881
+runtime_image: nvcr.io/nvidia/nemo@sha256:fdd6e9c7929b76c8624ddfea939dda345beaf67695d9c3994994c18f9e79b9bf
+transformers: 5.12.1
+max_hours: 2
+max_document_tokens: 1000000
+max_replay_scan_tokens: 2000000000
+new_acquisition_bytes: 0
+replay_non_roundtrip_policy: exclude_complete_document_count_and_report_never_retokenize
+original_base_checkpoint: checkpoints/exports/nemochat_baby_base_hf_bf16_02
+checkpoint_weights_integrity: not_checked_explicit_user_waiver
+manifest: datasets/midtraining/super35-kd-01/offline2b-v1/data/manifest.json
+capacity_gate: all_sources_must_cover_fixed_native_reserve_before_materialization

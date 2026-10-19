@@ -1,0 +1,9 @@
+{
+  "upstream": "google/fonts",
+  "revision": "b38c5c93af322c45f633e17ac440ec1e6c94d489",
+  "original_sha256": "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252",
+  "subset_bytes": 2749532,
+  "subset_sha256": "e538d63797c3054a892b92c916ed5557b1ef2cf7b47049f20b637ea2c9ec530e",
+  "license": "SIL OFL 1.1",
+  "note": "Renamed static weight 400 Hangul/Latin/punctuation subset; no runtime external fetch."
+}

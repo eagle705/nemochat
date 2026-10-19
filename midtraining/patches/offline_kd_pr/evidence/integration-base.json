@@ -1,0 +1,44 @@
+{
+  "bridge_version": "0.6.1",
+  "bridge_base_sha": "2a8fcdd05181ffcef261192f71ff5910d0005bf2",
+  "bridge_gpt_step_sha256": "18947f56d9cfe3198abea265bf828db4d89c54c0072c2f1768cb04368b2a81d9",
+  "image": "nvcr.io/nvidia/nemo@sha256:fdd6e9c7929b76c8624ddfea939dda345beaf67695d9c3994994c18f9e79b9bf",
+  "core_sources": [
+    {
+      "origin": "results/midtraining/super35-kd-01/offline-kd-sdk/pretrain_hybrid.py",
+      "path": "installed-core__pretrain_hybrid.py",
+      "sha256": "72406e8e850f1b856414c272273c7c21bc39ada32d7b1dc15ade3db9730fc243"
+    },
+    {
+      "origin": "results/midtraining/super35-kd-01/offline-kd-sdk/megatron/training/training.py",
+      "path": "installed-core__megatron__training__training.py",
+      "sha256": "d968ef8216f63d6373372190ac895fc905234c116bba3e804d2951876e6ad98c"
+    },
+    {
+      "origin": "results/midtraining/super35-kd-01/offline-kd-sdk/megatron/training/arguments.py",
+      "path": "installed-core__megatron__training__arguments.py",
+      "sha256": "f7fad20bc0e0cd9ba4b9ba7e70fa1a1b77030dfd020a7edb50b1d3b3aa41ebf6"
+    },
+    {
+      "origin": "results/midtraining/super35-kd-01/offline-kd-sdk/megatron/training/distillation/utils_logits.py",
+      "path": "installed-core__megatron__training__distillation__utils_logits.py",
+      "sha256": "c793dd9722131abf5401b366ab6f036f6141b482d361c75a89c377bc1740c2ab"
+    },
+    {
+      "origin": "results/midtraining/super35-kd-01/offline-kd-sdk/megatron/training/distillation/logits_saver.py",
+      "path": "installed-core__megatron__training__distillation__logits_saver.py",
+      "sha256": "bfde8fc4e6b3adf6c1df0f7c236e72916f9cae363b61b3379ae2727d02a119c5"
+    },
+    {
+      "origin": "results/midtraining/super35-kd-01/offline-kd-sdk/megatron/training/distillation/cached_logits_loss.py",
+      "path": "installed-core__megatron__training__distillation__cached_logits_loss.py",
+      "sha256": "53498d668843c76fa34797f6db5eb1c7487068f418de87960e27044f78c3cd4d"
+    },
+    {
+      "origin": "results/midtraining/super35-kd-01/offline-kd-sdk/megatron/training/distillation/__init__.py",
+      "path": "installed-core__megatron__training__distillation____init__.py",
+      "sha256": "afbd6fadc891b3e697313643424c392225b0ec9e2e7f852ccef9aca8c92326b6"
+    }
+  ],
+  "note": "Installed Bridge base, NOT upstream main; no installed SDK edits. Core modules ported from installed snapshots."
+}

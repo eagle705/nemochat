@@ -1,0 +1,124 @@
+# Consumed by scripts/posttraining/nemotron_dataset_settings.py; not a trainer config.
+schema: nemochat-nemotron-dataset-settings-v1
+discovery: results/pretraining/nemochat_baby/nemotron_sft/discovery
+current_runtime_config: configs/posttraining/nemochat_baby_nemotron_sft_16k_48h.yaml
+long_context_plan: configs/posttraining/nemochat_baby_long_context_128k.plan.yaml
+tokenizer:
+  manifest: results/pretraining/nemochat_baby/tokenizer_migration/manifest.json
+  repository: nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16
+  revision: fc067b34f6b514014d2f8bddba855d2e4bfdfba6
+  vocab_size: 131072
+  format: official-super35-selected-assistant-v1
+  enable_thinking: false
+  remote_code: false
+  weight_changes: false
+preparation:
+  selection: full_eligible_no_fixed_mixture_weights_or_quotas
+  heldout_modulus: 100
+  reserve_heldout: datasets/nemotron_sft/nemochat_baby/prepared-pilot-01/data/heldout-dialogues.jsonl
+  reserved_prompt_groups: 14
+  kmmlu_exclusions: results/pretraining/nemochat_baby/sft/data/raw/kmmlu-reserved-questions.json
+  kmmlu_reserved_questions: 34871
+  split: first_user_prompt_sha256_group_not_variant_id
+  inactive_excluded_source_groups: retain_blocklist_do_not_fabricate_rows
+  complete_prompt_plus_target: true
+  truncate: false
+  oversized: exclude_and_count
+  reasoning_content: omit_nonthinking_preserve_official_empty_think_markers
+  tool_policy: preserve_tools_call_ids_response_ids_parallel_order_decode_JSON_object_arguments
+  mask_policy: official_full_render_selected_assistant_content_calls_EOT_not_headers_users_tools
+  parity: official_render_bytes_and_full_token_ids_equal_then_source_offset_rerender_audit
+  schema_quarantine:
+    scope: whole_conversation_only_typed_source_errors_no_repair_other_errors_fatal
+    provenance: [source_dataset, source_revision, source_key, source_file, source_line, source_byte_offset, source_id, reason_code]
+    reason_counts: {tool_arguments_not_object: 20, tool_arguments_invalid_json: 2, orphan_tool_response: 17}
+    audit: results/pretraining/nemochat_baby/nemotron_sft/cpu-full-02/full-source-schema-audit.json
+  execution_runtime: approved_cached_CPU_image_Transformers_5.12.1_TokenizersBackend_no_host_upgrade
+stages:
+  current_sft:
+    sequence_length: 16384
+    context_parallel_size: 1
+    expert_model_parallel_size: 8
+    global_batch_size: 128
+    micro_batch_size: 1
+    epochs: 1
+    allow_repetition: false
+    seed: 42
+    source_checkpoint: results/pretraining/nemochat_baby/sft/runs/sft-main-01/checkpoint/iter_0000391
+    budget: parent_native_48h_calibration_and_cutoff_no_processed_token_unique_inflation
+    shuffle: deterministic_seeded_native_one_epoch
+  deferred_long_context:
+    sequence_length: 131072
+    precision: bf16
+    micro_batch_size: 1
+    physical_gpu_count: 8
+    initial_context_parallel_size: 8
+    candidate_context_parallel_sizes: [8, 4, 2]
+    minimum_free_memory_fraction_after_training_step: 0.15
+    source_checkpoint: null
+    source_checkpoint_policy: accepted_final_16k_sft_checkpoint_after_parent_handoff
+    global_batch_size: null
+    auto_launch: false
+    native_launch_ready: false
+    memory_selection: CP8_first_reduce_only_after_real_native_update_memory_save_clean_exit_acceptance
+    native_cp_validation: pending_for_CP2_CP4_CP8
+  reserved_rl_seed:
+    sequence_length: null
+    assistant_targets: false
+    train: false
+    heldout: false
+    policy: reserve_policies_tools_customer_scenarios_no_fabricated_answers
+datasets:
+  - id: nvidia/Nemotron-SFT-Agentic-v4
+    revision: a4593a26ea83a700035bbe0ec1edc9ef3810669d
+    license: [openmdw-1.1]
+    stage: current_sft
+    sequence_length: 16384
+    train: true
+    heldout: true
+    assistant_target_policy: author_selected_assistants_else_all_assistants
+    train_turns_mask: optional_boolean_all_messages_aligned
+    sources: [data/knowledge_agent.jsonl, data/tool_calling.jsonl]
+  - id: nvidia/Nemotron-SFT-Instruction-Following-Chat-v4
+    revision: 1cd362945d7a00b136b95b96892bbfea8798686e
+    license: [openmdw-1.1]
+    stage: current_sft
+    sequence_length: 16384
+    train: true
+    heldout: true
+    assistant_target_policy: author_selected_assistants_only_false_assistants_remain_context
+    train_turns_mask: required_boolean_all_messages_aligned_not_assistant_subsequence
+    sources: [data/chat.jsonl, data/instruction_following_for_response_length_control.jsonl, data/multi_turn_instruction_following.jsonl]
+  - id: nvidia/Nemotron-SFT-BBQ-v1
+    revision: 4efdb045cda11918f29065a2e0fd5000b73b8c22
+    license: [openmdw-1.1]
+    stage: current_sft
+    sequence_length: 16384
+    train: true
+    heldout: true
+    assistant_target_policy: author_selected_assistants_else_all_assistants
+    train_turns_mask: optional_boolean_all_messages_aligned
+    verified_raw_rows: 6000
+    sources: [data/train.jsonl]
+  - id: nvidia/Nemotron-SFT-Long-Context-Transduction-v1
+    revision: 90fa9816dd6e9a6bdb123a73fc1a2ed6408783e0
+    license: [openmdw-1.1]
+    stage: deferred_long_context
+    sequence_length: 131072
+    train: true
+    heldout: true
+    assistant_target_policy: complete_reference_no_truncation
+    train_turns_mask: optional_boolean_all_messages_aligned
+    current_stage_policy: exclude_entire_dataset_from_train_and_heldout_even_if_short_rows_fit
+    sources: [data/train.jsonl]
+  - id: nvidia/Nemotron-RL-Agentic-Conversational-Tool-Use-Seed-v1
+    revision: 9715a833ae2de4863e321067211f25efe42f6ebe
+    license: [openmdw-1.1]
+    stage: reserved_rl_seed
+    sequence_length: null
+    train: false
+    heldout: false
+    assistant_target_policy: none_no_gold_answers
+    train_turns_mask: not_applicable
+    sources: [data/train.jsonl]
+# Licenses above are pinned author-card metadata, not a legal clearance guarantee.

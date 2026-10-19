@@ -1,0 +1,31 @@
+schema: nemochat-super35-tokenizer-migration-v1
+source_repository: nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16
+new_revision: fc067b34f6b514014d2f8bddba855d2e4bfdfba6
+old_source_repository: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16
+old_revision: 2dc98e2afe4face0e4ce40972a915c45368bd34a
+old_tokenizer_path: checkpoints/teachers/hf-cache/models--nvidia--NVIDIA-Nemotron-3-Super-120B-A12B-BF16/snapshots/2dc98e2afe4face0e4ce40972a915c45368bd34a
+tokenizer_path: datasets/tokenizers/nemotron_super35/fc067b34f6b514014d2f8bddba855d2e4bfdfba6
+output_directory: results/pretraining/nemochat_baby/tokenizer_migration
+vocab_size: 131072
+allowed_changed_ids: [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+enable_thinking: false
+chat_format: official-super35-chat-template
+assets: [tokenizer.json, tokenizer_config.json, chat_template.jinja, README.md]
+# No weights, model config/custom modeling Python, AutoProcessor, or image assets.
+# License name/link retained from the pinned official README (OpenMDW-1.1).
+corpora:
+  climbmix_train:
+    prefix: datasets/climbmix/nemochat_baby/native-02/train/corpus
+    tokens: 10000269313
+  climbmix_validation:
+    prefix: datasets/climbmix/nemochat_baby/native-02/validation/corpus
+    tokens: 2000000
+  climbmix_calibration:
+    prefix: datasets/climbmix/nemochat_baby/native-02/calibration/corpus
+    tokens: 16000000
+  existing_sft_train:
+    npy: results/pretraining/nemochat_baby/sft/data/prepared/train-tokens.npy
+    shape: [50000, 4097]
+  existing_sft_heldout:
+    npy: results/pretraining/nemochat_baby/sft/data/prepared/heldout-tokens.npy
+    shape: [1000, 4097]

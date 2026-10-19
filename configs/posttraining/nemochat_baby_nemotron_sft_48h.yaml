@@ -1,0 +1,40 @@
+# Parent must freeze actual manifest, explicit epochs and new-data calibration before execution.
+name: nemochat baby Nemotron SFT 48h
+execution_mode: longrun
+source_checkpoint: results/pretraining/nemochat_baby/sft/runs/sft-main-01/checkpoint/iter_0000391
+checkpoint_integrity: not_checked_explicit_user_waiver
+tokenizer_manifest: results/pretraining/nemochat_baby/tokenizer_migration/manifest.json
+prior_heldout_reservation: datasets/nemotron_sft/nemochat_baby/prepared-pilot-01/data/heldout-dialogues.jsonl
+sequence_length: 4096
+global_batch_size: 128
+micro_batch_size: 1
+# Explicit maximum 3 epochs; prefer 1 with enough unique prepared corpus.
+# A 50k..100k corpus cannot fill 48h at this repeat limit and is rejected.
+epochs: 3
+authorized_max_epochs: 3
+allow_repetition: true
+max_updates: 14000
+max_hours: 48
+watchdog_grace_minutes: 60
+# Measured OLD GB128 SFT391 updates 6..391; NOT new-corpus calibration.
+estimated_iteration_seconds: 11.510017357512954
+assumed_overhead_fraction: 0.10
+calibration_receipt: null
+calibration_required: true
+learning_rate: 0.00001
+min_learning_rate: 0.000001
+warmup_ratio: 0.03
+weight_decay: 0.01
+seed: 42
+save_interval: 250
+save_optim: true
+save_rng: true
+most_recent_k: 3
+validation_interval: 100
+validation_max_dialogues: 1000
+require_final_validation: true
+quality_early_stopping: pending_parent_guard_not_implemented
+best_validation_checkpoint_retention: not_implemented
+artifact_upload: forbidden
+reasoning_policy: nonthinking_omit_reasoning_content
+format: official-super35-selected-assistant-v1

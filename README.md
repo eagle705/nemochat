@@ -10,6 +10,14 @@ The focus is not another agent application or a generic training framework. It i
 
 ## Current implementation boundary
 
+**Accepted native-run history and latest model:** read the
+[source organization / SFT1248 handoff](docs/en/SOURCE_HANDOFF.md)
+([한국어](docs/ko/SOURCE_HANDOFF.md)). The private repository name `SFT-1200`
+refers to actual checkpoint **1248**. Historical runtime sources are retained,
+not a claim that every native launcher is portable from a source-only checkout.
+The table below describes the original CPU tutorial layer, not the complete
+subsequent native execution history.
+
 This repository currently implements readable **Part I CPU-first building blocks**, not the full seven-stage GPU training system.
 
 | Component | Implemented / exercised | Not established yet |
@@ -73,6 +81,16 @@ The Lens [rollout/tool bottleneck lab](tutorials/nemo_lens/rollout/README.md) ([
 
 Read [scope and acceptance gates](docs/en/OBSERVABILITY_TRACKS.md) ([Korean](docs/ko/OBSERVABILITY_TRACKS.md)) and the folders' actual verification reports. The [whole-repository review and commit gates](docs/en/WHOLE_REPOSITORY_REVIEW.md) ([Korean](docs/ko/WHOLE_REPOSITORY_REVIEW.md)) records the current complete-source pass, repairs and final commit scope. Preserve default training, main dependencies, WSD/WSM and resume behavior. These educational controls are not the implemented native hybrid training system.
 
+## Live training dashboard
+
+[`dashboard/`](dashboard/README.md) ([한국어](dashboard/README.ko.md)) provides a separate read-only Korean live monitor: local run/counter/loss/stage evidence, CPU/GPU samples, SSE updates, six-stage profile selection and scoped optimization candidates. It reads existing Lens/Nsight/bridge artifacts without starting profilers or changing trainers. Current native captures are pretraining-only; educational controls and unobserved stages are explicitly separate. [Executed dashboard verification](dashboard/VERIFICATION.md) and [profile/provenance/Lens-interface update](dashboard/UPDATE_VERIFICATION.md).
+
+```bash
+python3 dashboard/server.py --root . --config dashboard/config.json --port 8787 --interval 5 --reload-config
+```
+
+Use loopback or SSH tunneling, not an unauthenticated public port. Additional runs and captures require explicit allowlist entries.
+
 ## Install on a CPU host
 
 ```bash
@@ -83,6 +101,10 @@ python3 -m venv .venv
 ```
 
 Bridge/Core/Transformer Engine are **not** installed in this CPU environment. Keep their future GPU container separate. The implementation verification report records the versions actually tested; dependency ranges above are not a complete GPU environment lock.
+
+## Future work
+
+- **Teacher-assisted midtraining with Megatron Bridge:** the user selected completed WSD BASE → a new LM+logits-KD midtraining schedule → SFT. Implementation, native YAML, isolated compatibility patches and acceptance gates are in [`midtraining/`](midtraining/README.md) ([한국어](midtraining/README.ko.md)). The teacher is the pinned **Nemotron 3.5 Super VL Base**, not Instruct. Native LM+KD update/save/teacher-free reload passed on the existing-ClimbMix operational control; see [executed verification](midtraining/VERIFICATION.md) ([한국어](midtraining/VERIFICATION.ko.md)). The newly selected Specialized corpus and production run are separately gated. Completed BASE pretraining remains LM-only. The [earlier proposal](docs/en/PRETRAIN_DISTILLATION_FUTURE_WORK.md) is retained as historical planning.
 
 ## Read in this order
 
@@ -220,6 +242,7 @@ See [Gym preparation, official commands and comparison contract](docs/en/GYM_PRE
 
 ## Documentation and publication
 
+- [NVIDIA dataset SFT, Super3.5 tokenizer transition, RLVR pause and private PRETRAIN BASE publication](docs/en/NEMOTRON_SFT_AND_TOKENIZER_TRANSITION.md) ([한국어](docs/ko/NEMOTRON_SFT_AND_TOKENIZER_TRANSITION.md)): pinned author cards, actual prior-run evidence, reserved-ID-only migration and separate BASE lineage; executed, prepared and pending work are explicitly distinguished.
 - [Project plan](docs/NEMOCHAT_PROJECT_PLAN.md)
 - [English CPU walkthrough](docs/en/CPU_IMPLEMENTATION.md)
 - [Detailed metrics and ClimbMix](docs/en/PRETRAIN_METRICS_AND_CLIMBMIX.md)

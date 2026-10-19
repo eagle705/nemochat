@@ -1,0 +1,26 @@
+schema_version: 1
+budget:
+  train_iters: 3662
+  global_batch_size: 128
+  sequence_length: 4096
+  processed_tokens: 1919942656
+  cycling: false
+  weights:
+    code_concepts: 0.67
+    algorithmic: 0.10
+    formal_logic: 0.03
+    climbmix_replay: 0.20
+  train_tokens:
+    code_concepts: 1292808193
+    algorithmic: 192966657
+    formal_logic: 57901057
+    climbmix_replay: 385921025
+max_hours: 2
+max_output_bytes: 16000000000
+max_document_tokens: 1000000
+max_replay_scan_tokens: 600000000
+whole_document_exclude_algorithmic_reserved_ids: true
+remap_ids: false
+cycling: false
+acquisition_bytes: 0
+gpu_used: false

@@ -1,0 +1,77 @@
+{
+  "run": "offline2b-prefixtrain-01",
+  "scope": "original first64 calls only; no continuation/restarted/filtered/dynamic records spliced",
+  "report_generated_at": "2026-10-18T13:46:21.022128+09:00",
+  "ranks": 8,
+  "calls_per_rank": 64,
+  "positive_lr_updates_per_rank": 63,
+  "zero_lr_calls_per_rank": 1,
+  "skipped_per_rank": 0,
+  "nonfinite": 0,
+  "processed_positions": 33554432,
+  "consumed_global_samples": 8192,
+  "matched_teacher_microbatch_digests": 8192,
+  "first_call": {
+    "lm loss": 2.3285608291625977,
+    "logits distillation loss": 1.7472002506256104,
+    "total loss": 2.0378806591033936
+  },
+  "call64": {
+    "lm loss": 1.7032392024993896,
+    "logits distillation loss": 1.1172844171524048,
+    "total loss": 1.4102617502212524
+  },
+  "window_mean": {
+    "lm loss": {
+      "first8": 2.3122435212135315,
+      "last8": 1.7182453274726868,
+      "relative_decrease_percent": 25.689257567001313
+    },
+    "logits distillation loss": {
+      "first8": 1.7449513971805573,
+      "last8": 1.1371734738349915,
+      "relative_decrease_percent": 34.83065054577429
+    },
+    "total loss": {
+      "first8": 2.028597503900528,
+      "last8": 1.427709385752678,
+      "relative_decrease_percent": 29.62086451316636
+    }
+  },
+  "grad_norm_min": 0.23194445669651031,
+  "grad_norm_max": 1.3858615159988403,
+  "first_peak_lr_call": 38,
+  "last_lr_used": 1e-05,
+  "last8_maxrank_mean_seconds": 9.730136454862077,
+  "allrank_reduced_metric_values_identical": true,
+  "checkpoint64_native_transaction_verified": true,
+  "checkpoint64_exists": true,
+  "checkpoint_payload_hashing": "not_checked_explicit_user_waiver",
+  "training_authorization": "STOPPED per user; documentation only",
+  "evidence_sha256": {
+    "results/midtraining/offline2b-prefixtrain-01/student-rank0-updates.jsonl": "b316a6867213f66bc4bd9ffac28cd5ca90d67934b5d2fd22c96b334ef0778d74",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank0-samples.jsonl": "22d93bf171c121c7eed53a18f3d491aaabcb7db757a9edcbdbf976e26f8f7a47",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank1-updates.jsonl": "d3fd823014c22c6d891c466cb0ee299def097190fa5685d07abe3a8917e07030",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank1-samples.jsonl": "01356781a060ca3da25e9ce1d007619a23250754c33764e26ad3482bab099bef",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank2-updates.jsonl": "9e7cf30573ec4e9efe3e46e418547ff78b3b8599ecd1324b0152976ca41115a0",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank2-samples.jsonl": "75ed6c542618dbe959db02db8216d5ae37fead0f599c631dc22fab4c7c74f65b",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank3-updates.jsonl": "00a195aa119579b8edb87eacfa4587d82849dce098ac847f85973ee48e80ebcf",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank3-samples.jsonl": "6a43246db958ae4886e268faa5de4e6db7fc2f923b4f078cae0619323b2e8733",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank4-updates.jsonl": "65726b6d2f7d7e2dac0353523637c5c2ee958db698142614b56efda0bb720fca",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank4-samples.jsonl": "a596ad2ef022fc390659c3d291c886b598f73f0d7ac451a7663428b3b046a054",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank5-updates.jsonl": "7c8cce2aa79c3e8b61a05b9d22ad5d3d0a7bb4130c10d4ae8e48d5cf299da940",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank5-samples.jsonl": "ec8c9b2bccb8f6a9c16b918c631a2b903461a6261ad7e29d7beab97dc80d4268",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank6-updates.jsonl": "32bada0c4ec1abfb066f7350104b8baeff305b372c616d37942c7424e4dbc219",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank6-samples.jsonl": "541bceba9177f3074fccbf23936a6a1a6d6f80f49eee748db5f8b32d54d3e8eb",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank7-updates.jsonl": "2c97e86b2f43a99ce9b0e80ed0d3e877f5d1c0f2df45c8821195deb87043bbfb",
+    "results/midtraining/offline2b-prefixtrain-01/student-rank7-samples.jsonl": "1ee9e2a46c54f6de5733f0bfba5c4958e9e714c1ce9595c39ba4d772fb30bb3e",
+    "results/midtraining/offline2b-prefixtrain-01/run-config.json": "82368112f4a86c681577d7603085faad3a976c466d3ca7998992a214be9240ab",
+    "results/midtraining/offline2b-prefixtrain-01/segment-plan.json": "a23c840ee04b1efe5adf3a4e84980635f7425b1f01598cb026008eb6b1151eb8",
+    "results/midtraining/offline2b-prefixtrain-01/first64-proof.json": "14a3e52b48b2266badac459208aa1c2f679e6e02b867b46da95bdbfaf75d80f7",
+    "results/midtraining/offline2b-prefixtrain-01/checkpoint-step64-transaction.json": "6a7ed723fbddd8ff511f14726324cf3021e172243d6305fa9121b1656035c5bd",
+    "results/midtraining/offline2b-prefixtrain-01/lr-loss-first64.json": "20730d39c1b02840019ffe7d259a08fff1c45703056cde66c7854812a1cbce38",
+    "results/midtraining/offline2b-prefixtrain-01/lr-loss-first64.png": "69ee1db30128699f551922042a88da556dcb58e32d81a11b5d796a3157af2ccb",
+    "results/midtraining/offline2b-prefixtrain-01/operational-resume-proof.json": "e489157514eb0f9f286e0a49d5ec439af733ad53012a4a3031f48549c71746ff"
+  },
+  "copied_figure_sha256": "69ee1db30128699f551922042a88da556dcb58e32d81a11b5d796a3157af2ccb"
+}

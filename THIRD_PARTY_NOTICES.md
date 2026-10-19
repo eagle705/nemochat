@@ -42,6 +42,18 @@ The WSM launcher invokes, but does not vendor, `NVIDIA/Megatron-LM` PR #5114 at 
 
 The Gym importer targets official artifacts/configurations from `NVIDIA-NeMo/Gym` at `804c12a7d56a151a98ae150a352350e3c856ba47`: https://github.com/NVIDIA-NeMo/Gym . It does not vendor benchmark datasets or run/relicense their scorers. Each benchmark, model/tokenizer and dataset retains its own rights and usage conditions. Synthetic comparison fixtures test the importer and are not official benchmark data or measured model results.
 
+This repository has since accumulated a separately scoped cached-KD source port and
+minimal upstream comparison snapshots under `midtraining/patches/offline_kd_pr/`.
+Their NVIDIA copyright headers, exact image/source provenance, modification notice,
+and full applicable license texts are preserved in that directory's
+[`licenses/README.md`](midtraining/patches/offline_kd_pr/licenses/README.md).
+This is an exception to the earlier non-vendoring description, not a blanket
+relicense of the SDK or this project.
+
+The dashboard's renamed/subset Korean font is distributed under SIL OFL 1.1.
+Preserve `dashboard/static/FONT-OFL.txt` and `FONT-PROVENANCE.json` with
+`NemoChatKorean.ttf`; the latter records the upstream revision and subset hash.
+
 These notices do not grant a blanket license over benchmark contents, tokenizer/model weights, teacher outputs or all tutorial datasets. Review each artifact's source rights separately before publishing.
 
 ## NeMo Lens and profiler lab extensions

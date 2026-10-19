@@ -1,0 +1,10 @@
+schema_version: 1
+seed_manifest: datasets/midtraining/super35-kd-01/pilot-10m-v1/manifest.json
+seed_manifest_sha256: 52d0d44fce30ea1737396fad9b2d95c3040835769eaa089df1d9bfa1f1d1e308
+# Only operational bounds are adjustable, then require a fresh parent review.
+max_hours: 12
+max_output_bytes: 64000000000
+max_raw_bytes: 7000000000
+max_replay_scan_tokens: 2000000000
+max_document_tokens: 1000000
+# No acquisition is performed. Raising max_raw_bytes is NOT acquisition approval.

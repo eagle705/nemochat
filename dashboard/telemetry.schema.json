@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NemoChat canonical telemetry v1",
+  "description": "Manifest or one train_step record. Synthetic test fixtures are not training evidence. Cross-record identity, designated writer and monotonicity are enforced by telemetry.py.",
+  "oneOf": [{"$ref": "#/$defs/manifest"}, {"$ref": "#/$defs/train_step"}],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,80}$"},
+    "text": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\x00-\\x1f\\x7f]+$"},
+    "stage": {"type": "string", "enum": ["data", "pretrain", "mid", "long", "sft", "rlvr", "mopd"]},
+    "count": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+    "metric": {"type": ["number", "null"]},
+    "model": {"type": "object", "additionalProperties": false, "properties": {"name": {"$ref": "#/$defs/text"}, "parameters_total": {"$ref": "#/$defs/count"}, "parameters_active": {"$ref": "#/$defs/count"}, "precision": {"$ref": "#/$defs/text"}}},
+    "data": {"type": "object", "additionalProperties": false, "properties": {"name": {"$ref": "#/$defs/text"}, "kind": {"$ref": "#/$defs/text"}, "scope": {"$ref": "#/$defs/text"}, "prepared_tokens": {"$ref": "#/$defs/count"}}},
+    "manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "run_id", "name", "stage"],
+      "properties": {"schema_version": {"type": "integer", "const": 1}, "run_id": {"$ref": "#/$defs/id"}, "name": {"$ref": "#/$defs/text"}, "stage": {"$ref": "#/$defs/stage"}, "model": {"$ref": "#/$defs/model"}, "data": {"$ref": "#/$defs/data"}, "total_steps": {"$ref": "#/$defs/count"}, "target_tokens": {"$ref": "#/$defs/count"}, "status": {"type": "string", "enum": ["unknown", "observed", "stale", "completed", "failed"]}}
+    },
+    "extra": {"type": "object", "additionalProperties": false, "properties": {"reward_mean": {"$ref": "#/$defs/metric"}, "policy_loss": {"$ref": "#/$defs/metric"}, "value_loss": {"$ref": "#/$defs/metric"}, "kl": {"$ref": "#/$defs/metric"}, "entropy": {"$ref": "#/$defs/metric"}, "distillation_loss": {"$ref": "#/$defs/metric"}, "teacher_kl": {"$ref": "#/$defs/metric"}}},
+    "train_step": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "event", "run_id", "stage", "step", "timestamp", "rank", "world_size", "metrics_scope", "counters", "metrics", "timing"],
+      "properties": {
+        "schema_version": {"type": "integer", "const": 1}, "event": {"type": "string", "const": "train_step"}, "run_id": {"$ref": "#/$defs/id"}, "stage": {"$ref": "#/$defs/stage"}, "step": {"$ref": "#/$defs/count"},
+        "timestamp": {"type": "string", "format": "date-time", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"},
+        "rank": {"type": "integer", "minimum": 0, "maximum": 65535}, "world_size": {"type": "integer", "minimum": 1, "maximum": 65536}, "metrics_scope": {"type": "string", "enum": ["global", "rank_local"]},
+        "counters": {"type": "object", "additionalProperties": false, "required": ["scope", "processed", "loss_bearing", "source_read"], "properties": {"scope": {"type": "string", "const": "global_cumulative"}, "processed": {"$ref": "#/$defs/count"}, "loss_bearing": {"$ref": "#/$defs/count"}, "source_read": {"$ref": "#/$defs/count"}}},
+        "metrics": {"type": "object", "additionalProperties": false, "required": ["loss", "learning_rate", "grad_norm"], "properties": {"loss": {"$ref": "#/$defs/metric"}, "learning_rate": {"$ref": "#/$defs/metric"}, "grad_norm": {"$ref": "#/$defs/metric"}, "extra": {"$ref": "#/$defs/extra"}}},
+        "timing": {"type": "object", "additionalProperties": false, "required": ["step_seconds"], "properties": {"step_seconds": {"type": ["number", "null"], "minimum": 0}}}
+      }
+    }
+  }
+}

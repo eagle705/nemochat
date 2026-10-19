@@ -1,0 +1,52 @@
+# Deferred stage PLAN, not a directly launchable native trainer configuration.
+# Current16K/48h SFT controller and its immutable inputs are unchanged.
+schema: nemochat-deferred-long-context-plan-v1
+name: nemochat baby Long Context 128k
+stage: deferred_long_context
+sequence_length: 131072
+auto_launch: false
+changes_current_16k_sft: false
+native_launch_ready: false
+source_checkpoint: null
+source_checkpoint_policy: accepted_final_16k_sft_checkpoint_after_parent_handoff
+checkpoint_integrity: not_checked_explicit_user_waiver
+dataset:
+  id: nvidia/Nemotron-SFT-Long-Context-Transduction-v1
+  revision: 90fa9816dd6e9a6bdb123a73fc1a2ed6408783e0
+  raw_source_policy: reuse_existing_pinned_verified_download
+  train_in_current_16k_stage: false
+tokenizer_manifest: results/pretraining/nemochat_baby/tokenizer_migration/manifest.json
+data_policy:
+  measure_complete_prompt_plus_reference: true
+  truncate_reference_answers: false
+  oversized_complete_examples: exclude_and_count
+  metadata_target_tokens_are_not_actual_combined_length: true
+  preserve_existing_prompt_group_blocklist: true
+parallelism_plan:
+  physical_gpu_count: 8
+  tensor_model_parallel_size: 1
+  pipeline_model_parallel_size: 1
+  expert_model_parallel_size_candidate: 8
+  micro_batch_size: 1
+  initial_context_parallel_size: 8
+  candidate_context_parallel_sizes: [8, 4, 2]
+  selection_policy: conservative_CP8_first_then_reduce_only_after_measured_training_memory_and_throughput
+  native_training_probe_required: true
+  unverified_cp_must_not_launch_production: true
+  minimum_free_memory_fraction_after_training_step: 0.15
+  topology_policy: verify_pinned_dense_and_expert_grids_and_Mamba_CP_partitioning
+  loss_accounting_policy: verify_CP_ownership_no_duplicate_sample_or_token_counting
+  all_candidates_fail_policy: stop_and_report_no_driver_reset_or_false_success
+precision: bf16
+global_batch_size: null
+optimizer_and_schedule: freeze_after_128k_native_calibration
+activation_recomputation_policy: select_supported_mode_during_native_memory_probe
+required_gates:
+  - accepted_16k_sft_source_checkpoint
+  - actual_131072_input_label_position_lengths_and_shifted_masks
+  - all8_frozen_logical_parameter_dimensions_unchanged
+  - real_128k_CP_forward_backward_optimizer_update_and_memory_headroom
+  - all8_finite_positive_gradients_and_correct_CP_token_normalization
+  - native_full_state_save_and_clean_Engine_exit
+  - measured_global_batch_throughput_and_frozen_budget
+status: configuration_only_pending_native_128k_CP_validation

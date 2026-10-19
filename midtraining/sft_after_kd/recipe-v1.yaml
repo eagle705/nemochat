@@ -1,0 +1,45 @@
+# Version 1: inert template; max_updates/max_hours frozen ONLY after fresh C calibration.
+name: nemochat C LM+KD1000 SFT until 2026-10-19 noon KST
+execution_mode: calibration
+source_checkpoint: checkpoints/exports/nemochat_mid_super35_distill_hf_bf16_01
+native_source_lineage: results/midtraining/offline2b-prefixtrain-1000-01/checkpoint/iter_0001000
+source_load_mode: model_only_fresh_optimizer_scheduler_rng_cursor
+checkpoint_integrity: not_checked_explicit_user_waiver
+tokenizer_manifest: results/pretraining/nemochat_baby/tokenizer_migration/manifest.json
+prior_heldout_reservation: datasets/nemotron_sft/nemochat_baby/prepared-pilot-01/data/heldout-dialogues.jsonl
+excluded_datasets: [nvidia/Nemotron-SFT-Long-Context-Transduction-v1]
+sequence_length: 16384
+context_parallel_size: 1
+expert_model_parallel_size: 8
+global_batch_size: 128
+micro_batch_size: 1
+epochs: 1
+authorized_max_epochs: 1
+allow_repetition: false
+max_updates: null
+max_hours: null
+# Absolute deadline is immutable in controls.py, NOT a relative 12-hour duration.
+hard_deadline: '2026-10-19T12:00:00+09:00'
+training_stop_timestamp: null
+conservative_iteration_seconds: null
+save_eval_buffer_seconds: 1800
+watchdog_grace_minutes: 15
+learning_rate: 0.00001
+min_learning_rate: 0.000001
+weight_decay: 0.01
+seed: 42
+save_interval: 250
+save_optim: true
+save_rng: true
+most_recent_k: 3
+validation_interval: 250
+validation_max_dialogues: 128
+require_final_validation: true
+artifact_upload: forbidden
+reasoning_policy: nonthinking_omit_reasoning_content
+format: official-super35-selected-assistant-v1
+calibration_required: true
+# Prior 4K/SFT391 or BASE timings are not C/16K calibration.
+calibration_receipt: null
+# Current old full-03 completion-ready marker is ABSENT after stable-file failure.
+launch_ready: false

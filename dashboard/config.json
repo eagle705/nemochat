@@ -1,0 +1,140 @@
+{
+  "_comment": "Explicit local artifact allowlist. Add a runs entry (id/path/stage/format/rank_count), then restart or launch with --reload-config. Formats: bridge rank-N-updates.jsonl/requested-config.json/verified-summary.json; native rank-N.json/rank-N-phases.jsonl/resolved_config.json/result.json. No automatic results/checkpoint tree scans. Missing stages remain not_observed; no stage completion inferred from pilot runs.",
+  "interval_seconds": 5,
+  "stale_seconds": 120,
+  "history_limit": 256,
+  "gpu_enabled": true,
+  "nvidia_smi_timeout_seconds": 1.5,
+  "max_sse_clients": 4,
+  "write_timeout_seconds": 2,
+  "runs": [
+    {
+      "id": "bridge-fresh-wsd4-01",
+      "name": "실제 Bridge WSD 4-update pilot",
+      "path": "results/pretrain_followup/bridge-fresh-wsd4-01",
+      "format": "bridge",
+      "stage": "pretrain",
+      "rank_count": 8,
+      "data_name": "ClimbMix indexed pilot",
+      "scope": "2M prepared tokens; 4 actual Bridge updates only, not full pretraining",
+      "model_census": "results/gpu_validation/20261013-124945/native_A_smoke/result.json"
+    },
+    {
+      "id": "bf16-resume-02",
+      "name": "BF16 전체 상태 재개 / update 2",
+      "path": "results/e2e/20261013-1539/train/runs/bf16-resume-02",
+      "format": "native",
+      "stage": "pretrain",
+      "rank_count": 8,
+      "precision": "bf16",
+      "model_name": "Native hybrid variant A",
+      "data_name": "ClimbMix real prefixes",
+      "terminal_receipt": "results/e2e/20261013-1539/train/containers/bf16-resume-02/state.json"
+    },
+    {
+      "id": "bf16-save-01",
+      "name": "BF16 저장 producer 실패 / snapshot 검증 별도",
+      "path": "results/e2e/20261013-1539/train/runs/bf16-save-01",
+      "format": "native",
+      "stage": "pretrain",
+      "rank_count": 8,
+      "precision": "bf16",
+      "model_name": "Native hybrid variant A",
+      "data_name": "ClimbMix real prefixes",
+      "terminal_receipt": "results/e2e/20261013-1539/bf16-save-01-postexit-audit.json"
+    },
+    {
+      "id": "native-unprofiled-diag-01",
+      "name": "Native 비프로파일 진단 / warmup 포함",
+      "path": "results/e2e/20261013-1539/profile/unprofiled-diag-01",
+      "format": "native",
+      "stage": "pretrain",
+      "rank_count": 8,
+      "precision": "bf16",
+      "model_name": "Native hybrid variant A",
+      "data_name": "ClimbMix real prefixes"
+    },
+    {
+      "id": "native-rank0-profile-01",
+      "name": "Native rank-0 Nsight 진단 / 전체 노드 성능 아님",
+      "path": "results/e2e/20261013-1539/profile_retry/rank0-01",
+      "format": "native",
+      "stage": "pretrain",
+      "rank_count": 8,
+      "precision": "bf16",
+      "model_name": "Native hybrid variant A",
+      "data_name": "ClimbMix real prefixes"
+    },
+    {
+      "id": "deterministic-control-a-failed",
+      "name": "과거 deterministic A / logger 실패",
+      "path": "results/e2e/20261013-1539/train/runs/deterministic-control-a",
+      "format": "native",
+      "stage": "pretrain",
+      "rank_count": 8,
+      "precision": "bf16",
+      "model_name": "Native hybrid variant A",
+      "data_name": "ClimbMix real prefixes",
+      "terminal_receipt": "results/e2e/20261013-1539/train/containers/deterministic-control-a/state.json"
+    },
+    {
+      "id": "deterministic-control-a2",
+      "name": "과거 deterministic A2 / 현재 승인 게이트 아님",
+      "path": "results/e2e/20261013-1539/train/runs/deterministic-control-a2",
+      "format": "native",
+      "stage": "pretrain",
+      "rank_count": 8,
+      "precision": "bf16",
+      "model_name": "Native hybrid variant A",
+      "data_name": "ClimbMix real prefixes",
+      "terminal_receipt": "results/e2e/20261013-1539/train/containers/deterministic-control-a2/state.json"
+    },
+    {
+      "id": "deterministic-control-b2",
+      "name": "과거 deterministic B2 / 현재 승인 게이트 아님",
+      "path": "results/e2e/20261013-1539/train/runs/deterministic-control-b2",
+      "format": "native",
+      "stage": "pretrain",
+      "rank_count": 8,
+      "precision": "bf16",
+      "model_name": "Native hybrid variant A",
+      "data_name": "ClimbMix real prefixes",
+      "terminal_receipt": "results/e2e/20261013-1539/train/containers/deterministic-control-b2/state.json"
+    }
+  ],
+  "run_roots": [
+    {
+      "path": "results/e2e/20261013-1539/bridge_next/runs",
+      "format": "bridge",
+      "rank_count": 8,
+      "prefixes": {"bridge-mid-": "mid", "bridge-sft-": "sft"},
+      "model_census": "results/gpu_validation/20261013-124945/native_A_smoke/result.json"
+    },
+    {
+      "path": "results/e2e/20261013-1539/rl_next/runs",
+      "format": "rlvr",
+      "rank_count": 8,
+      "prefixes": {"native-rlvr-": "rlvr"},
+      "model_name": "Native hybrid variant A",
+      "data_name": "Native rollout diagnostics",
+      "model_census": "results/gpu_validation/20261013-124945/native_A_smoke/result.json"
+    }
+  ],
+  "profiling": {
+    "_comment": "Lens/bridge educational control is a separate run, not native trainer instrumentation. Only pretrain has a native Nsight capture. Stage fields are explicit null until actual local evidence is configured.",
+    "lens_spans": "results/gpu_validation/20261013-124945/bridge_cuda/lens-spans.jsonl",
+    "bridge_operations": "results/gpu_validation/20261013-124945/bridge_cuda/operations.jsonl",
+    "nsight_sqlite": "results/e2e/20261013-1539/profile_retry/rank0-01-trace/capture.sqlite",
+    "nsight_summary": "results/e2e/20261013-1539/profile-summary.json",
+    "nsight_analysis": "results/dashboard_timeline/parent-4092da896b57/inspector.json",
+    "nsight_native_source": "results/e2e/20261013-1539/profile_retry/native_profile.py",
+    "nsight_source_provenance": "results/e2e/20261013-1539/profile_retry/source-provenance.json",
+    "stages": {
+      "mid": {"lens_spans": null, "bridge_operations": null, "nsight_sqlite": null, "nsight_summary": null},
+      "long": {"lens_spans": null, "bridge_operations": null, "nsight_sqlite": null, "nsight_summary": null},
+      "sft": {"lens_spans": null, "bridge_operations": null, "nsight_sqlite": null, "nsight_summary": null},
+      "rlvr": {"lens_spans": null, "bridge_operations": null, "nsight_sqlite": null, "nsight_summary": null},
+      "mopd": {"lens_spans": null, "bridge_operations": null, "nsight_sqlite": null, "nsight_summary": null}
+    }
+  }
+}

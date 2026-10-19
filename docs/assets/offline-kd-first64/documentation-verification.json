@@ -1,0 +1,20 @@
+{
+  "verified_at": "2026-10-18T13:49:41.894135+09:00",
+  "scope": "documentation only; original run first64; no GPU training or checkpoint byte audit",
+  "all8_raw_calls_verified": 64,
+  "teacher_digest_rows_rematched": 8192,
+  "csv_rows": 64,
+  "plot_data_matches_original_rank_logs": true,
+  "evidence_files_sha256_verified": 23,
+  "copied_original_png_identity_verified": true,
+  "local_links_checked": 34,
+  "all_local_links_exist": true,
+  "no_running_nemochat_containers": true,
+  "checkpoint_payloads_not_hashed": true,
+  "documents": [
+    "docs/en/MIDTRAIN_OFFLINE_KD_FIRST64_RESULTS.md",
+    "docs/ko/MIDTRAIN_OFFLINE_KD_FIRST64_RESULTS.md",
+    "midtraining/offline2b/prefix/README.md",
+    "midtraining/offline2b/prefix/README.ko.md"
+  ]
+}

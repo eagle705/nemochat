@@ -1,0 +1,38 @@
+name: nemochat baby Nemotron SFT
+source_checkpoint: results/pretraining/nemochat_baby/sft/runs/sft-main-01/checkpoint/iter_0000391
+checkpoint_integrity: not_checked_explicit_user_waiver
+tokenizer_manifest: results/pretraining/nemochat_baby/tokenizer_migration/manifest.json
+prior_heldout_reservation: datasets/nemotron_sft/nemochat_baby/prepared-pilot-01/data/heldout-dialogues.jsonl
+sequence_length: 4096
+global_batch_size: 128
+micro_batch_size: 1
+epochs: 1
+max_updates: 1000
+max_hours: 24
+learning_rate: 0.00001
+min_learning_rate: 0.000001
+warmup_ratio: 0.03
+weight_decay: 0.01
+seed: 42
+save_interval: 250
+save_optim: true
+save_rng: true
+most_recent_k: 3
+validation_interval: 100
+artifact_upload: forbidden
+reasoning_policy: nonthinking_omit_reasoning_content
+format: official-super35-selected-assistant-v1
+# Proposed quotas only: preparation reports actual availability, never silently substitutes.
+proposed_source_quotas:
+  Nemotron-SFT-Instruction-Following-Chat-v4--chat: 40000
+  Nemotron-SFT-Instruction-Following-Chat-v4--multi_turn_instruction_following: 20000
+  Nemotron-SFT-Instruction-Following-Chat-v4--instruction_following_for_response_length_control: 10000
+  Nemotron-SFT-Agentic-v4--tool_calling: 18000
+  Nemotron-SFT-Agentic-v4--knowledge_agent: 2000
+  Nemotron-SFT-Long-Context-Transduction-v1--train: 5000
+  Nemotron-SFT-BBQ-v1--train: 5000
+acquisition:
+  aggregate_mib: 8192
+  per_file_mib: 1024
+  seed_rows: 4
+  sampling: bounded_prefix_not_representative

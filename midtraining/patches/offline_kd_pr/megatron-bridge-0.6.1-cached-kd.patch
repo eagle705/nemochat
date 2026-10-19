@@ -1,0 +1,2404 @@
+--- a/src/megatron/bridge/training/gpt_step.py
++++ b/src/megatron/bridge/training/gpt_step.py
+@@ -563,3 +563,19 @@
+         return partial(loss_func_kd, loss_mask=loss_mask, original_loss_fn=mnt_loss_func, model=unwrapped_model)
+     else:
+         return mnt_loss_func
++
++
++
++def make_cached_kd_forward_step(config, runtime_factory, *, resume_binding=None):
++    """Opt-in native Core cached KD; existing default/ModelOpt paths are unchanged.
++
++    Use the returned callable as pretrain(forward_step_func=...) in a with block.
++    Native cache generation instead uses its explicit cache_forward method and
++    never executes an optimizer/backward step. See cached_kd.integration.
++    """
++    from megatron.bridge.training.cached_kd.integration import CachedKDForwardStep
++
++    return CachedKDForwardStep(
++        config, runtime_factory, resume_binding=resume_binding,
++        common_forward=_forward_step_common,
++    )
+--- /dev/null
++++ b/src/megatron/bridge/training/cached_kd/__init__.py
+@@ -0,0 +1 @@
++"""Opt-in native Core cached KD port for pinned Megatron-Bridge 0.6.1."""
+--- /dev/null
++++ b/src/megatron/bridge/training/cached_kd/cached_logits_loss.py
+@@ -0,0 +1,887 @@
++# Copyright (c) 2026, NVIDIA CORPORATION. All rights reserved.
++
++"""
++Offline knowledge distillation loss using cached teacher top-K log-probabilities.
++
++This module provides a loss function that loads pre-computed teacher top-K
++log-probabilities from disk (as saved by ``LogitsSaverHooks`` in ``logits_saver.py``)
++and computes forward KL divergence against live student logits.
++
++Design highlights
++-----------------
++* **Sparse KL** – each rank uses only the teacher top-K positions that fall in
++  its local vocab shard, avoiding a full-vocab-sized dense teacher tensor.
++* **TP-aware student normalisation** – the student log-probabilities are
++  normalised across tensor-parallel vocab shards before gathering the sparse
++  teacher top-K positions.
++* **Custom tar streaming + DataLoader** – a :class:`torch.utils.data.DataLoader`
++  with ``pin_memory=True`` streams batched tar shards so that disk I/O overlaps
++  with GPU compute, and the CPU→GPU copy can be issued with
++  ``non_blocking=True``.
++* **Own-rank loading only** – each rank loads only cp-dp shards matching its
++  parallelism coordinates (no cross-rank file I/O beyond DP resharding).
++* **Multi-threaded decode pipeline** – the tar ``IterableDataset`` runs
++  inside a single DataLoader worker (to preserve shard iteration order) and
++  parallelises the CPU-bound zstd decompression + ``torch.load`` + index
++  unpacking across an internal ``ThreadPoolExecutor``.  This removes the
++  single-thread bottleneck that dominates per-iteration loader cost when each
++  saved tar contains a large multi-microbatch blob.
++
++Assumptions
++-----------
++* The student run uses the **same random seed** and data pipeline as the
++  teacher run that produced the cached log-probs, so the microbatch ordering
++  matches.
++* **Same CP layout** (``cp_rank``) as the teacher run.  The DP size may differ:
++  both upscaling (saved < current) and downscaling (saved > current) are
++  supported provided one evenly divides the other.
++* **Same micro-batch size** as the teacher run.
++* Teacher log-probs were saved by ``LogitsSaverHooks`` (see ``logits_saver.py``).
++
++Usage example
++-------------
++::
++
++    from megatron.bridge.training.cached_kd.cached_logits_loss import LossFuncCallable
++
++    # Instantiate once at the start of training
++    loss_func = LossFuncCallable(
++        logprobs_dir="/data/teacher_logprobs",
++        kd_loss_alpha=0.5,
++    )
++
++    # Pass as the loss_func to Megatron's training loop:
++    #   loss, num_tokens, report = loss_func(loss_mask, output_tensor, model)
++"""
++
++import concurrent.futures
++import logging
++from collections import deque
++from typing import Any, Iterator, List, Optional, Tuple
++
++import torch
++import torch.distributed as dist
++import torch.distributed.nn as dist_nn
++import torch.utils.data
++
++from megatron.core import parallel_state
++from megatron.core.models.common.language_module.language_module import LanguageModule
++from .runtime import print_rank_0
++from .utils_logits import (
++  BATCHED_TAR_RE,
++  CACHED_LOGITS_LOGPROB_SENTINEL,
++  LogprobsTarEntry,
++  TarShardPrefetcher,
++  batched_tar_prefix,
++  compute_dataset_hash,
++  decode_logprobs_payload,
++  detect_saved_dp_size,
++  get_current_iteration,
++  iter_logprobs_tar_entries,
++  is_remote_storage_path,
++  storage_basename,
++  storage_glob_with_caching,
++  sorted_batched_tars,
++)
++
++logger = logging.getLogger(__name__)
++
++# Module-level reference so the training loss can consume logits captured
++# from the model's output layer without requiring model-specific attributes.
++_ACTIVE_STUDENT_LOGITS_CAPTURE: Optional["StudentLogitsCapture"] = None
++
++
++def get_student_logits_capture() -> Optional["StudentLogitsCapture"]:
++    """Return the active :class:`StudentLogitsCapture` instance, or *None*."""
++    return _ACTIVE_STUDENT_LOGITS_CAPTURE
++
++
++class StudentLogitsCapture:
++    """Forward-hook helper that keeps the latest differentiable student logits."""
++
++    def __init__(self):
++        self._logits: Optional[torch.Tensor] = None
++        self._hook_handles: List[Any] = []
++
++    def attach_hooks(self, model: LanguageModule) -> None:
++        """Attach forward hooks to the model's output layer."""
++        handle = model.output_layer.register_forward_hook(self._capture_logits)
++        self._hook_handles.append(handle)
++
++        global _ACTIVE_STUDENT_LOGITS_CAPTURE
++        _ACTIVE_STUDENT_LOGITS_CAPTURE = self
++
++    def _capture_logits(
++        self,
++        module: torch.nn.Module,
++        input: Any,
++        output: Any,
++    ) -> None:
++        if not module.training:
++            return
++        # NOTE: Assumes main head runs after MTP layers, overwriting this value prior to pop().
++        self._logits = output[0] if isinstance(output, tuple) else output
++
++    def pop(self) -> torch.Tensor:
++        """Return captured logits and clear the reference for the next forward."""
++        if self._logits is None:
++            raise RuntimeError(
++                "No student logits were captured for cached-logits KD. "
++                "Attach StudentLogitsCapture to the model output layer during setup."
++            )
++        logits = self._logits
++        self._logits = None
++        return logits
++
++    def remove_hooks(self) -> None:
++        """Remove all registered hooks and clear captured state."""
++        for handle in self._hook_handles:
++            handle.remove()
++        self._hook_handles.clear()
++        self._logits = None
++
++
++def _compute_dp_remapping(
++    logprobs_dir: str,
++    dp_rank: int,
++    dp_size: int,
++) -> Tuple[List[int], int, int, int]:
++    """Compute the DP rank remapping when loading data saved with a different DP size.
++
++    Scans *logprobs_dir* via :func:`detect_saved_dp_size` to infer the
++    saved DP world size.  When no batched tars are found, returns the
++    identity mapping ``([dp_rank], 0, 1, dp_size)``.
++
++    Data is distributed across DP ranks in a round-robin (wrapping)
++    fashion: with *dp_size_saved* ranks and *G* global microbatches,
++    saved rank *d* holds microbatch indices ``d, d + dp_size_saved,
++    d + 2·dp_size_saved, …``.
++
++    **Upscaling** (``dp_size_saved < dp_size``): each saved rank's data
++    is shared by ``dp_size // dp_size_saved`` current ranks that stride
++    through its microbatches.
++
++    **Downscaling** (``dp_size_saved > dp_size``): each current rank
++    loads from ``dp_size_saved // dp_size`` saved files and interleaves
++    their microbatches to reconstruct its share of the global ordering.
++
++    Returns:
++        ``(source_dp_ranks, sub_rank, dp_ratio, dp_size_saved)`` where
++
++        - *source_dp_ranks* is the list of saved-file DP ranks to read.
++          Length 1 for identity or upscaling, length > 1 for downscaling.
++        - *sub_rank* selects the strided microbatch slice within each
++          source file (non-zero only when upscaling).
++        - *dp_ratio* is ``dp_size / dp_size_saved``: > 1 when upscaling
++          (used as the stride in microbatch slicing), < 1 when downscaling
++          (informational only — the multi-source interleave path is used
++          instead), and 1 for the identity case.
++        - *dp_size_saved* is the DP world size used when the data was
++          written.
++    """
++    dp_size_saved = detect_saved_dp_size(logprobs_dir)
++
++    if dp_size_saved is None:
++        return [dp_rank], 0, 1, dp_size
++    if dp_size_saved == dp_size:
++        return [dp_rank], 0, 1, dp_size_saved
++
++    if dp_size_saved < dp_size:
++        # Upscaling: multiple current ranks share one saved file
++        if dp_size % dp_size_saved != 0:
++            raise ValueError(
++                f"Current DP size ({dp_size}) is not an exact multiple of "
++                f"saved DP size ({dp_size_saved})."
++            )
++        dp_ratio = dp_size // dp_size_saved
++        mapped_dp_rank = dp_rank % dp_size_saved
++        sub_rank = dp_rank // dp_size_saved
++        return [mapped_dp_rank], sub_rank, dp_ratio, dp_size_saved
++
++    # Downscaling: each current rank loads from multiple saved files
++    if dp_size_saved % dp_size != 0:
++        raise ValueError(
++            f"Saved DP size ({dp_size_saved}) is not an exact multiple of "
++            f"current DP size ({dp_size})."
++        )
++    num_sources = dp_size_saved // dp_size
++    source_dp_ranks = [dp_rank + i * dp_size for i in range(num_sources)]
++    dp_ratio = dp_size / dp_size_saved  # e.g. 0.5 when halving DP
++    return source_dp_ranks, 0, dp_ratio, dp_size_saved
++
++
++# ---------------------------------------------------------------------------
++#  Dataset – streaming batched tar shards
++# ---------------------------------------------------------------------------
++
++class TeacherTarDataset(torch.utils.data.IterableDataset):
++    """Streaming dataset that reads teacher log-probs from batched tar shards.
++
++    Supports a single on-disk layout: ``cp{C}_dp{D}__{B}.tar``.  Shards are
++    saved by TP rank 0 with the full top-K; every TP rank loads the same
++    cp-dp tar.
++
++    **DP resharding** is supported in both directions:
++
++    * **Upscaling** (saved DP < current DP) — multiple current ranks share
++      one saved file and stride through its microbatches.
++    * **Downscaling** (saved DP > current DP) — each current rank loads
++      from multiple saved files and interleaves their microbatches to
++      reconstruct its share of the global microbatch ordering.
++
++    **Shard discovery**: after known shards are exhausted, discovery refreshes
++    the directory listing so a concurrent writer can publish more data. Remote
++    refreshes are issued by rank 0 and broadcast to avoid object-store list
++    storms.
++
++    Yields ``(values_list, indices_list)``.
++    """
++
++    def __init__(
++        self,
++        logprobs_dir: str,
++        cp_rank: int,
++        dp_rank: int,
++        dp_size: int,
++        start_iteration: int = 0,
++        decode_threads: int = 1,
++        decode_lookahead: Optional[int] = None,
++        msc_prefetch_depth: int = 2,
++    ):
++        self.logprobs_dir = logprobs_dir
++        self.cp_rank = cp_rank
++        self.dp_rank = dp_rank
++        self.start_iteration = start_iteration
++
++        self._remote_logprobs = is_remote_storage_path(logprobs_dir)
++        self._msc_prefetch_depth = max(0, msc_prefetch_depth)
++
++        # Per-tar dataset-identity verification: each tar stream validates its
++        # leading _meta.json before yielding any payload data.
++        self._expected_hash, _ = compute_dataset_hash()
++
++        self._decode_threads = max(1, decode_threads)
++        if decode_lookahead is None:
++            decode_lookahead = max(2 * self._decode_threads, 4)
++        self._decode_lookahead = max(1, decode_lookahead)
++        if self._decode_threads > 1:
++            print_rank_0(
++                f"Teacher logits decode: using {self._decode_threads} decode threads "
++                f"(lookahead={self._decode_lookahead}) in the logits loader worker"
++            )
++        if self._remote_logprobs and self._msc_prefetch_depth > 0:
++            print_rank_0(
++                f"Teacher logits remote tar prefetch: {self._msc_prefetch_depth} "
++                "shard(s) ahead"
++            )
++
++        # DP remapping: detect saved DP size and compute mapping
++        self._source_dp_ranks, self._sub_rank, self._dp_ratio, dp_size_saved = (
++            _compute_dp_remapping(logprobs_dir, dp_rank, dp_size)
++        )
++        if len(self._source_dp_ranks) > 1:
++            print_rank_0(
++                f"DP downscaling: dp_rank {dp_rank} loads from saved dp_ranks "
++                f"{self._source_dp_ranks} (saved_dp_size {dp_size_saved}, "
++                f"current_dp_size {dp_size})"
++            )
++        elif self._dp_ratio > 1:
++            print_rank_0(
++                f"DP upscaling: dp_rank {dp_rank} -> mapped_dp_rank "
++                f"{self._source_dp_ranks[0]} (sub_rank {self._sub_rank}, "
++                f"saved_dp_size {dp_size_saved}, current_dp_size {dp_size})"
++            )
++
++    def _discover_shards(self, already_processed: set, dp_rank: int) -> list:
++        """Glob for new cp-dp batched tar shards.
++
++        Args:
++            already_processed: Set of URLs already processed (to skip).
++            dp_rank: Saved DP rank to discover shards for.
++        """
++        prefix = batched_tar_prefix(self.cp_rank, dp_rank)
++        all_urls = sorted_batched_tars(
++            storage_glob_with_caching(self.logprobs_dir, f"{prefix}*.tar", cached=False)
++        )
++        new_urls = []
++        for url in all_urls:
++            if url in already_processed:
++                continue
++            m = BATCHED_TAR_RE.match(storage_basename(url))
++            if m and int(m.group("iter")) >= self.start_iteration:
++                new_urls.append(url)
++        return new_urls
++
++    def _slice_microbatches(
++        self,
++        values_list: List[torch.Tensor],
++        indices_list: List[torch.Tensor],
++    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
++        """Return only this rank's strided microbatch slice when DP ratio > 1."""
++        if self._dp_ratio <= 1:
++            return values_list, indices_list
++
++        num_mb = len(values_list)
++        if num_mb % self._dp_ratio != 0:
++            raise ValueError(
++                f"Saved microbatch count ({num_mb}) is not divisible by "
++                f"DP ratio ({self._dp_ratio}). Cannot evenly split "
++                f"microbatches across remapped DP ranks."
++            )
++        return (
++            values_list[self._sub_rank :: self._dp_ratio],
++            indices_list[self._sub_rank :: self._dp_ratio],
++        )
++
++    @staticmethod
++    def _interleave_microbatches(
++        all_values: List[List[torch.Tensor]],
++        all_indices: List[List[torch.Tensor]],
++    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
++        """Interleave microbatches from multiple source dp_ranks (downscaling).
++
++        Given *N* sources each with *M* microbatches, produces a single
++        list of *N·M* microbatches ordered so that the round-robin global
++        microbatch assignment is reconstructed:
++        ``src0_mb0, src1_mb0, …, srcN_mb0, src0_mb1, src1_mb1, …``
++        """
++        num_sources = len(all_values)
++        num_mb = len(all_values[0])
++        merged_values: List[torch.Tensor] = []
++        merged_indices: List[torch.Tensor] = []
++        for mb_idx in range(num_mb):
++            for src_idx in range(num_sources):
++                merged_values.append(all_values[src_idx][mb_idx])
++                merged_indices.append(all_indices[src_idx][mb_idx])
++        return merged_values, merged_indices
++
++    # ------------------------------------------------------------------
++    #  Shard discovery
++    # ------------------------------------------------------------------
++
++    def _not_found_error(self) -> FileNotFoundError:
++        """Build a descriptive FileNotFoundError for missing shards."""
++        dp_ranks = self._source_dp_ranks
++        if len(dp_ranks) == 1:
++            dp = dp_ranks[0]
++            return FileNotFoundError(
++                f"No batched tar shards for "
++                f"cp{self.cp_rank}_dp{dp} "
++                f"found at or after iteration {self.start_iteration} "
++                f"in '{self.logprobs_dir}'"
++            )
++        return FileNotFoundError(
++            f"No batched tar shards for source dp_ranks "
++            f"{dp_ranks} (cp{self.cp_rank}) "
++            f"found at or after iteration {self.start_iteration} "
++            f"in '{self.logprobs_dir}'"
++        )
++
++    def _shard_groups(
++        self,
++        processed: set,
++        prefetcher: TarShardPrefetcher,
++    ) -> Iterator[Tuple[str, ...]]:
++        """Yield source-DP shard URL groups as new shards are discovered.
++
++        Each yielded tuple has one URL per source DP rank.  Handles dynamic
++        re-discovery: when all current groups are exhausted, re-globs for new
++        shards and yields the next batch.  Raises :class:`FileNotFoundError` if
++        no shards exist at all; returns normally when no *new* shards appear.
++        """
++        while True:
++            urls_per_src = [
++                self._discover_shards(processed, src_dp)
++                for src_dp in self._source_dp_ranks
++            ]
++            if not all(urls_per_src):
++                if not processed:
++                    raise self._not_found_error()
++                return
++            groups = list(zip(*urls_per_src))
++            for group in prefetcher.iter_prefetched(groups):
++                processed.update(group)
++                yield group
++
++    # ------------------------------------------------------------------
++    #  Tar decode and DP resharding helpers
++    # ------------------------------------------------------------------
++
++    def _decode_entry(
++        self,
++        entry: LogprobsTarEntry,
++    ) -> Tuple[int, List[torch.Tensor], List[torch.Tensor]]:
++        """Decode one raw tar payload into logical iteration tensors."""
++        values_list, indices_list = decode_logprobs_payload(entry.data)
++        return entry.iteration, values_list, indices_list
++
++    def _iter_entries_parallel(
++        self,
++        pool: concurrent.futures.ThreadPoolExecutor,
++        entries: Iterator[LogprobsTarEntry],
++    ) -> Iterator[Tuple[int, List[torch.Tensor], List[torch.Tensor]]]:
++        """Yield decoded entries using a decode thread pool.
++
++        The main thread streams raw tar members one at a time and submits the
++        CPU-heavy zstd + ``torch.load`` + index unpacking work to *pool*.
++        Results are yielded in tar order via a FIFO of futures.
++        """
++        pending: "deque[concurrent.futures.Future]" = deque()
++        exhausted = False
++
++        def submit_next() -> None:
++            nonlocal exhausted
++            if exhausted:
++                return
++            try:
++                entry = next(entries)
++            except StopIteration:
++                exhausted = True
++                return
++            pending.append(pool.submit(self._decode_entry, entry))
++
++        for _ in range(self._decode_lookahead):
++            submit_next()
++            if exhausted:
++                break
++
++        while pending:
++            fut = pending.popleft()
++            decoded = fut.result()
++            submit_next()
++            yield decoded
++
++    def _iter_decoded_entries(
++        self,
++        pool: Optional[concurrent.futures.ThreadPoolExecutor],
++        url: str,
++    ) -> Iterator[Tuple[int, List[torch.Tensor], List[torch.Tensor]]]:
++        """Yield decoded iteration payloads from one tar URL."""
++        entries = iter_logprobs_tar_entries(
++            url,
++            start_iteration=self.start_iteration,
++            expected_hash=self._expected_hash,
++        )
++        if pool is None:
++            for entry in entries:
++                yield self._decode_entry(entry)
++        else:
++            yield from self._iter_entries_parallel(pool, entries)
++
++    def _interleave_decoded_group(
++        self,
++        decoded_group: Tuple[Tuple[int, List[torch.Tensor], List[torch.Tensor]], ...],
++    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
++        """Interleave matching iterations from multiple source DP ranks."""
++        all_values: List[List[torch.Tensor]] = []
++        all_indices: List[List[torch.Tensor]] = []
++        ref_iteration: Optional[int] = None
++        for decoded in decoded_group:
++            iteration, vals, inds = decoded
++            if ref_iteration is None:
++                ref_iteration = iteration
++            elif iteration != ref_iteration:
++                raise RuntimeError(
++                    f"Iteration mismatch across source dp_ranks during "
++                    f"downscaled DP loading: expected iteration "
++                    f"{ref_iteration} but got {iteration}."
++                )
++            all_values.append(vals)
++            all_indices.append(inds)
++        return self._interleave_microbatches(all_values, all_indices)
++
++    def _iter_single_source_group(
++        self,
++        pool: Optional[concurrent.futures.ThreadPoolExecutor],
++        url: str,
++    ) -> Iterator[Tuple[List[torch.Tensor], List[torch.Tensor]]]:
++        """Yield DP-sliced microbatches from one source DP tar stream."""
++        for iteration, values_list, indices_list in self._iter_decoded_entries(pool, url):
++            self._require_iteration(iteration)
++            yield self._slice_microbatches(values_list, indices_list)
++
++    def _require_iteration(self, iteration):
++        if iteration != self._expected_iteration:
++            raise RuntimeError(
++                f"cached KD iteration gap: expected {self._expected_iteration}, got {iteration}"
++            )
++        self._expected_iteration += 1
++
++    def _iter_downscaled_group(
++        self,
++        pool: Optional[concurrent.futures.ThreadPoolExecutor],
++        urls: Tuple[str, ...],
++    ) -> Iterator[Tuple[List[torch.Tensor], List[torch.Tensor]]]:
++        """Yield interleaved microbatches from source DP tar streams in lockstep."""
++        decoded_iters = [self._iter_decoded_entries(pool, url) for url in urls]
++        for decoded_group in zip(*decoded_iters):
++            merged = self._interleave_decoded_group(decoded_group)
++            self._require_iteration(decoded_group[0][0])
++            yield merged
++
++    def _iter_group(
++        self,
++        pool: Optional[concurrent.futures.ThreadPoolExecutor],
++        group: Tuple[str, ...],
++    ) -> Iterator[Tuple[List[torch.Tensor], List[torch.Tensor]]]:
++        """Yield logical training iterations from one shard group."""
++        if len(self._source_dp_ranks) > 1:
++            yield from self._iter_downscaled_group(pool, group)
++        else:
++            yield from self._iter_single_source_group(pool, group[0])
++
++    # ------------------------------------------------------------------
++    #  Main iteration entry point
++    # ------------------------------------------------------------------
++
++    def __iter__(self):
++        self._expected_iteration = self.start_iteration
++        processed: set = set()
++        with TarShardPrefetcher(
++            enabled=self._remote_logprobs,
++            depth=self._msc_prefetch_depth,
++            max_workers=max(1, self._msc_prefetch_depth * len(self._source_dp_ranks)),
++        ) as prefetcher:
++            if self._decode_threads == 1:
++                for group in self._shard_groups(processed, prefetcher):
++                    yield from self._iter_group(None, group)
++            else:
++                with concurrent.futures.ThreadPoolExecutor(
++                    max_workers=self._decode_threads,
++                    thread_name_prefix="teacher-decode",
++                ) as pool:
++                    for group in self._shard_groups(processed, prefetcher):
++                        yield from self._iter_group(pool, group)
++
++
++# ---------------------------------------------------------------------------
++#  Top-K KL divergence
++# ---------------------------------------------------------------------------
++
++def topk_kl_div(
++    student_logits: torch.Tensor,
++    teacher_topk_logprobs: torch.Tensor,
++    teacher_topk_indices: torch.Tensor,
++    tp_size: int,
++    tp_rank: int,
++    tp_group: dist.ProcessGroup,
++    add_ghost_token: bool = False,
++) -> torch.Tensor:
++    """Compute the KL divergence between student and teacher's top-K log-probs."""
++    student_logits = student_logits.float()
++    teacher_topk_logprobs = teacher_topk_logprobs.float()
++
++    # ---- TP-aware student softmax / log-softmax ----
++    logits_max, _ = student_logits.max(dim=-1, keepdim=True)
++    if tp_size > 1:
++        dist.all_reduce(logits_max, op=dist.ReduceOp.MAX, group=tp_group)
++    student_logits -= logits_max.detach()  # purely for numerical stability
++
++    sum_exp = student_logits.exp().sum(dim=-1, keepdim=True)
++    if tp_size > 1:
++        sum_exp = dist_nn.functional.all_reduce(sum_exp, op=dist.ReduceOp.SUM, group=tp_group)
++    student_logprobs = student_logits - sum_exp.log()
++
++    # ---- Gather student log-probs at teacher's top-K positions (local shard only) ----
++    local_vocab_size = student_logits.size(-1)
++    offset = local_vocab_size * tp_rank
++    mask = (
++        (teacher_topk_indices >= offset)
++        & (teacher_topk_indices < offset + local_vocab_size)
++        & (teacher_topk_logprobs != CACHED_LOGITS_LOGPROB_SENTINEL)
++    )
++    # Clamp out-of-range indices to avoid index errors; their contributions are zeroed by the mask
++    teacher_local_indices = (teacher_topk_indices - offset).clamp(0, local_vocab_size - 1)
++    # In TP > 1, may contain duplicate values due to clamping above, so they are masked downstream
++    student_topk_logprobs = torch.gather(student_logprobs, -1, teacher_local_indices)
++
++    # ---- Add a "ghost" token containing sum of non-top-K probabilities to both student and teacher ----
++    if add_ghost_token:
++        eps = 1e-8
++        student_topk_logprobs_exp = student_topk_logprobs.exp() * mask  # don't sum duplicate indices if any
++        student_topk_exp_sum = student_topk_logprobs_exp.sum(dim=-1, keepdim=True)
++        if tp_size > 1:
++            student_topk_exp_sum = dist_nn.functional.all_reduce(
++                student_topk_exp_sum, op=dist.ReduceOp.SUM, group=tp_group
++            )
++        student_residual = torch.log((1.0 - student_topk_exp_sum).clamp(min=eps))
++        teacher_residual = torch.log((1.0 - teacher_topk_logprobs.exp().sum(dim=-1, keepdim=True)).clamp(min=eps))
++        student_topk_logprobs = torch.cat([student_topk_logprobs, student_residual], dim=-1)
++        teacher_topk_logprobs = torch.cat([teacher_topk_logprobs, teacher_residual], dim=-1)
++        mask = torch.cat([mask, mask.new_full((*mask.shape[:-1], 1), float(tp_rank==0))], dim=-1)
++
++    # ---- Sparse KL divergence (summed over top-K dimension) ----
++    kl_div = teacher_topk_logprobs.exp() * (teacher_topk_logprobs - student_topk_logprobs)
++    kl_loss = torch.sum(mask * kl_div, dim=-1)
++
++    return kl_loss.transpose(0, 1).contiguous()  # [S, B] -> [B, S]
++
++# ---------------------------------------------------------------------------
++#  KD dataloading + loss class
++# ---------------------------------------------------------------------------
++
++class CachedLogitsKDLoss:
++    """Offline knowledge-distillation loss backed by cached teacher top-K log-probs.
++
++    For each microbatch the loss function:
++
++    1. Retrieves (or prefetches via the DataLoader) this rank's cp-dp tar shard
++       containing the teacher's full top-K log-probabilities and global vocab
++       indices.
++    2. Computes the student's globally-normalised log-probabilities via a
++       TP-aware softmax, gathers them at the teacher's top-K positions, and
++       returns the **forward KL divergence**
++       ``KL(teacher ‖ student) = Σ_k p_T(k)·[log p_T(k) − log p_S(k)]``
++       averaged over all token positions.
++
++    A :class:`torch.utils.data.DataLoader` with ``pin_memory=True`` streams
++    batched tar shards from disk so that I/O overlaps with GPU compute.
++    Because the tensors arrive in pinned host memory, the subsequent
++    ``tensor.to(device, non_blocking=True)`` call can overlap the DMA transfer
++    with ongoing GPU kernels.
++
++    A custom tar reader sequentially streams ``cp{C}_dp{D}__{B}.tar`` shards
++    through the same storage layer used by the writer.
++
++    The DataLoader is initialised lazily on the first ``__call__`` because the
++    starting iteration is not known at construction time.
++
++    Args:
++        logprobs_dir: Root directory containing log-probs data written by
++            :class:`LogitsSaverHooks`.
++        decode_threads: Number of decode threads inside the single DataLoader
++            worker used to parallelise zstd decompression and ``torch.load``
++            across in-flight samples.
++        prefetch_factor: How many decoded iterations the PyTorch DataLoader
++            worker pre-loads ahead.
++        msc_prefetch_depth: For remote MSC tar shards, how many whole
++            shard objects to materialize into the MSC cache ahead of
++            sequential tar consumption.
++    """
++
++    def __init__(
++        self,
++        logprobs_dir: str,
++        decode_threads: int = 1,
++        prefetch_factor: int = 2,
++        msc_prefetch_depth: int = 2,
++    ):
++        self.logprobs_dir = logprobs_dir
++        self._decode_threads = decode_threads
++        self._prefetch_factor = prefetch_factor
++        self._msc_prefetch_depth = msc_prefetch_depth
++
++        # ---- parallel-state bookkeeping ----
++        self.tp_rank = parallel_state.get_tensor_model_parallel_rank()
++        self.tp_size = parallel_state.get_tensor_model_parallel_world_size()
++        self.tp_group = parallel_state.get_tensor_model_parallel_group()
++        self.cp_rank = parallel_state.get_context_parallel_rank()
++        self.dp_rank = parallel_state.get_data_parallel_rank()
++        self.dp_size = parallel_state.get_data_parallel_world_size()
++
++        # ---- DataLoader (lazy-initialised on first call) ----
++        self._dataloader_iter: Optional[Iterator] = None
++
++        # ---- iteration / microbatch tracking ----
++        self._current_iteration: Optional[int] = None
++        self._microbatch_counter: int = 0
++
++        # ---- current iteration's teacher data (pinned CPU tensors) ----
++        self._current_values: Optional[List[torch.Tensor]] = None
++        self._current_indices: Optional[List[torch.Tensor]] = None
++
++    def _init_dataloader(self, start_iteration: int) -> None:
++        """Create the DataLoader starting from *start_iteration*."""
++        # TeacherTarDataset yields a single ordered stream, so multiple DataLoader
++        # workers would split shards and interleave results non-deterministically.
++        # Cap at 1 DataLoader worker; intra-worker parallelism is obtained via
++        # the ThreadPoolExecutor inside TeacherTarDataset.
++        dataset = TeacherTarDataset(
++            self.logprobs_dir,
++            self.cp_rank,
++            self.dp_rank,
++            self.dp_size,
++            start_iteration=start_iteration,
++            decode_threads=self._decode_threads,
++            msc_prefetch_depth=self._msc_prefetch_depth,
++        )
++        # Remote shard discovery uses rank-0 collectives, so it must run in the
++        # main training process rather than a DataLoader worker.
++        dataloader_workers = 0 if is_remote_storage_path(self.logprobs_dir) else 1
++        loader_kwargs = dict(
++            dataset=dataset,
++            batch_size=None,
++            collate_fn=lambda x: x,
++            pin_memory=True,
++            num_workers=dataloader_workers,
++        )
++        if dataloader_workers > 0:
++            loader_kwargs["prefetch_factor"] = self._prefetch_factor
++            loader_kwargs["persistent_workers"] = True
++        loader = torch.utils.data.DataLoader(**loader_kwargs)
++        self._dataloader_iter = iter(loader)
++
++    def _advance_iteration(self) -> None:
++        """Fetch the next iteration's data from the DataLoader."""
++        assert self._dataloader_iter is not None
++        try:
++            values_list, indices_list = next(self._dataloader_iter)
++        except StopIteration as e:
++            raise StopIteration(
++                f"No more teacher log-prob data available in "
++                f"{self.logprobs_dir}.  The DataLoader has been exhausted."
++            ) from e
++        self._current_values = values_list
++        self._current_indices = indices_list
++        self._microbatch_counter = 0
++
++    def __call__(
++        self,
++        student_logits: torch.Tensor,
++        iteration: Optional[int] = None,
++        microbatch_idx: Optional[int] = None,
++    ) -> torch.Tensor:
++        """Compute KL-divergence loss for one microbatch.
++
++        Args:
++            student_logits: ``(seq_len, batch, local_vocab_size)`` – raw
++                (pre-softmax) student logits from this TP rank's vocab shard.
++            iteration: Training iteration.  Defaults to ``args.curr_iteration``.
++            microbatch_idx: Microbatch index within the current iteration.
++                Defaults to an auto-incremented counter that resets on each
++                new iteration.
++
++        Returns:
++            Tensor of shape ``(batch, seq_len)`` – per-token forward KL
++            divergence (unreduced).
++        """
++        # ---- resolve iteration ----
++        if iteration is None:
++            iteration = get_current_iteration()
++
++        # ---- lazy DataLoader init ----
++        if self._dataloader_iter is None:
++            self._init_dataloader(iteration)
++
++        # ---- detect iteration change → pull next prefetched item ----
++        if self._current_iteration != iteration:
++            self._advance_iteration()
++            self._current_iteration = iteration
++
++        # ---- resolve microbatch index ----
++        if microbatch_idx is None:
++            microbatch_idx = self._microbatch_counter
++            self._microbatch_counter += 1
++
++        if microbatch_idx >= len(self._current_values):
++            raise IndexError(
++                f"Microbatch index {microbatch_idx} out of range: only "
++                f"{len(self._current_values)} microbatches were saved for "
++                f"iteration {iteration}."
++            )
++
++        # ---- move teacher data to GPU (non-blocking: tensors are pinned) ----
++        teacher_values = self._current_values[microbatch_idx].to(
++            student_logits.device, non_blocking=True
++        )
++        teacher_indices = self._current_indices[microbatch_idx].to(
++            student_logits.device, non_blocking=True
++        )
++
++        logger.debug("[TP%s-CP%s-DP%s]: Iter_%s Batch_%s",
++                     self.tp_rank, self.cp_rank, self.dp_rank, iteration, microbatch_idx)
++
++        # ---- compute loss ----
++        return topk_kl_div(
++            student_logits,
++            teacher_values,
++            teacher_indices,
++            self.tp_size,
++            self.tp_rank,
++            self.tp_group,
++            add_ghost_token=True,
++        )
++
++# ---------------------------------------------------------------------------
++#  Main callable wrapper to pass to Megatron LM training loop
++# ---------------------------------------------------------------------------
++
++class LossFuncCallable:
++    def __init__(
++        self,
++        logprobs_dir: str,
++        decode_threads: int = 1,
++        prefetch_factor: int = 2,
++        kd_loss_alpha: float = 0.5,
++        ignore_errors: bool = False,
++        msc_prefetch_depth: int = 2,
++    ):
++        self.logprobs_dir = logprobs_dir
++        self.decode_threads = decode_threads
++        self.prefetch_factor = prefetch_factor
++        self.msc_prefetch_depth = msc_prefetch_depth
++        self.kd_func = None
++        self.alpha = kd_loss_alpha
++        self.ignore_errors = ignore_errors
++
++    @staticmethod
++    def _mask_loss(output_tensor, loss_mask):
++        """Apply mask to the unreduced loss tensor."""
++        losses = output_tensor.view(-1).float()
++        loss_mask = loss_mask.reshape(-1).float()
++        return torch.sum(losses * loss_mask)
++
++    def __call__(self, loss_mask: torch.Tensor, output_tensor: torch.Tensor, model: LanguageModule):
++        """Loss function wrapper for compatibility with Megatron LM training loop.
++
++        Args:
++            loss_mask (Tensor): Used to mask out some portions of the loss
++            output_tensor (Tensor): The tensor with the losses
++            model (LanguageModule): The model (can be wrapped)
++        """
++        if self.kd_func is None:
++            # Construct here so parallel_state is initialized by now
++            self.kd_func = CachedLogitsKDLoss(
++                logprobs_dir=self.logprobs_dir,
++                decode_threads=self.decode_threads,
++                prefetch_factor=self.prefetch_factor,
++                msc_prefetch_depth=self.msc_prefetch_depth,
++            )
++
++        # LM loss
++        loss_lm = self._mask_loss(output_tensor, loss_mask)
++        num_tokens = loss_mask.sum().clone().detach().to(torch.int)
++        report = {'lm loss': torch.cat([loss_lm.clone().detach().view(1), num_tokens.view(1)])}
++
++        # Eval case
++        if not model.training:
++            # During evaluation, return only the LM loss, as eval logits are not stored to disk
++            return loss_lm, num_tokens, report
++
++        # KD loss
++        try:
++            logits_capture = get_student_logits_capture()
++            if logits_capture is None:
++                raise RuntimeError(
++                    "Cached-logits KD requires StudentLogitsCapture to be attached "
++                    "to the model output layer during setup."
++                )
++            logits = logits_capture.pop()
++
++            loss_kd = self.kd_func(logits)
++            loss_kd = self._mask_loss(loss_kd, loss_mask)
++            # Requires extra TP reduction
++            dist.all_reduce(loss_kd, group=parallel_state.get_tensor_model_parallel_group())
++        except Exception as e:
++            if not self.ignore_errors:
++                raise
++            # Don't fail the entire training process if KD loss fails
++            logger.warning(f">>>>>> KD LOSS FAILED — falling back to LM loss. {type(e).__name__}: {e} <<<<<<")
++            return loss_lm, num_tokens, report
++
++        report["logits distillation loss"] = torch.cat([loss_kd.clone().detach().view(1), num_tokens.view(1)])
++
++        loss_total = (1 - self.alpha) * loss_lm + self.alpha * loss_kd
++        report["total loss"] = torch.cat([loss_total.clone().detach().view(1), num_tokens.view(1)])
++
++        return loss_total, num_tokens, report
+--- /dev/null
++++ b/src/megatron/bridge/training/cached_kd/integration.py
+@@ -0,0 +1,296 @@
++"""Opt-in Bridge forward-step integration for native Megatron-LM cached KD.
++
++No ModelOpt conversions, no online teacher in read mode, no default overrides.
++"""
++from dataclasses import dataclass
++import math
++
++
++@dataclass(frozen=True)
++class CachedKDConfig:
++    mode: str
++    cache_dir: str
++    cache_id: str
++    alpha: float = 0.5
++    top_k: int = 32
++    top_p: float | None = None
++    min_k: int = 1
++    save_dtype: str = 'fp16'
++    decode_threads: int = 1
++    prefetch_factor: int = 2
++    msc_prefetch_depth: int = 2
++    objective: str = 'megatron-lm-ghost-tail-fixed-alpha'
++
++    def __post_init__(self):
++        if self.mode not in ('write', 'read'):
++            raise ValueError('mode must be write or read')
++        if not self.cache_dir or not self.cache_id:
++            raise ValueError('cache_dir and immutable cache_id are required')
++        if not math.isfinite(self.alpha) or not 0 <= self.alpha <= 1:
++            raise ValueError('alpha must be finite and in [0, 1]')
++        if self.objective != 'megatron-lm-ghost-tail-fixed-alpha':
++            raise ValueError('only the native Core objective is implemented')
++        if self.top_k < 1 or self.min_k < 1 or self.min_k > self.top_k:
++            raise ValueError('invalid top_k/min_k')
++        if self.top_p is not None and not 0 < self.top_p <= 1:
++            raise ValueError('top_p must be in (0, 1]')
++        if self.save_dtype not in ('fp16', 'bf16', 'fp32'):
++            raise ValueError('invalid save_dtype')
++        if min(self.decode_threads, self.prefetch_factor) < 1 or self.msc_prefetch_depth < 0:
++            raise ValueError('invalid prefetch configuration')
++
++
++class CachedKDForwardStep:
++    """A Bridge ForwardStepCallable; construct explicitly, close deterministically.
++
++    runtime_factory(state) supplies Core dataset identity and live iteration.
++    Checkpoint bindings are explicit caller-owned sidecars, not silently added to
++    Bridge TrainState. A restored run must supply its matching binding.
++    """
++
++    def __init__(self, config, runtime_factory, *, resume_binding=None, common_forward=None):
++        self.config = config
++        self.runtime_factory = runtime_factory
++        self.resume_binding = resume_binding
++        self.common_forward = common_forward
++        self._model = None
++        self._runtime = None
++        self._capture = None
++        self._saver = None
++        self._reader = None
++        self._next_iteration = None
++        self._microbatch = 0
++        self._outstanding = False
++        self._closed = False
++
++    def _binding(self, runtime, iteration):
++        extra = {}
++        if runtime.data_parallel_size != 1:
++            extra = dict(data_parallel_size=runtime.data_parallel_size,
++                         expert_parallel_size=runtime.expert_parallel_size,
++                         dataset_identity=runtime.dataset_identity)
++        return dict(**extra, cache_id=self.config.cache_id, next_iteration=iteration,
++                    consumed_samples=iteration * runtime.global_batch_size,
++                    global_batch_size=runtime.global_batch_size,
++                    micro_batch_size=runtime.micro_batch_size,
++                    seed=runtime.seed, seq_length=runtime.seq_length,
++                    train_samples=runtime.train_samples, blend=runtime.blend,
++                    blend_per_split=runtime.blend_per_split,
++                    objective=self.config.objective, alpha=self.config.alpha)
++
++    def validate_resume(self, runtime):
++        iteration = runtime.iteration()
++        if iteration < 0:
++            raise ValueError('negative resume iteration')
++        if iteration and self.resume_binding is None:
++            raise ValueError('resume requires checkpoint cache binding')
++        if self.resume_binding is not None:
++            import json
++            # Native GPTDataset blends contain tuples; durable JSON sidecars do
++            # not. Compare canonical serialized values, never drop identity fields.
++            expected = json.loads(json.dumps(self._binding(runtime, iteration)))
++            actual = json.loads(json.dumps(self.resume_binding))
++            if actual != expected:
++                raise ValueError('checkpoint cache binding does not match runtime')
++
++
++    def __enter__(self):
++        return self
++
++    def __exit__(self, exc_type, exc, tb):
++        self.close(require_complete=exc_type is None)
++
++    def _setup(self, state, model):
++        import multiprocessing
++        from megatron.core import parallel_state
++        from megatron.core.utils import unwrap_model
++        from .runtime import bind_runtime, validate_topology
++        from .cached_logits_loss import CachedLogitsKDLoss, StudentLogitsCapture
++        from .logits_saver import LogitsSaverHooks
++        if self._closed:
++            raise RuntimeError('cached KD adapter is closed')
++        bare = unwrap_model(model)
++        from modelopt.torch.distill import DistillationModel
++        if isinstance(bare, DistillationModel):
++            raise ValueError('cached KD cannot run an online ModelOpt teacher')
++        if self._model is not None:
++            if bare is not self._model:
++                raise RuntimeError('model chunk changed; PP/VPP not implemented')
++            return
++        cfg = state.cfg.model
++        if any(getattr(cfg, key, None) for key in
++               ('mtp_num_layers', 'recompute_granularity', 'overlap_moe_expert_parallel_comm',
++                'virtual_pipeline_model_parallel_size', 'sequence_packing_scheduler')):
++            raise NotImplementedError('MTP/recompute/VPP/packing scheduler/overlap are gated')
++        if getattr(cfg, 'cuda_graph_impl', 'none') not in ('none', None):
++            raise NotImplementedError('CUDA graphs are gated')
++        sizes = [parallel_state.get_tensor_model_parallel_world_size(),
++                 parallel_state.get_context_parallel_world_size(),
++                 parallel_state.get_data_parallel_world_size(),
++                 parallel_state.get_pipeline_model_parallel_world_size()]
++        ep = parallel_state.get_expert_model_parallel_world_size()
++        if (sizes[0], sizes[1], sizes[2], sizes[3], ep) not in ((1,1,1,1,1), (1,1,8,1,8)):
++            raise NotImplementedError('only TP1/CP1/PP1 DP1/EP1 or DP8/EP8 integration is supported')
++        if multiprocessing.get_start_method() != 'fork':
++            raise NotImplementedError('DataLoader runtime transport currently requires Linux fork')
++        if not hasattr(bare, 'output_layer'):
++            raise ValueError('model requires a native output_layer')
++        runtime = self.runtime_factory(state)
++        self.validate_resume(runtime)
++        validate_topology(tp=sizes[0], cp=sizes[1], dp=sizes[2], pp=sizes[3], ep=ep,
++                          gbs=runtime.global_batch_size, mbs=runtime.micro_batch_size,
++                          microbatches=runtime.num_microbatches())
++        if runtime.mtp_num_layers or runtime.data_parallel_size != sizes[2] or runtime.expert_parallel_size != ep:
++            raise ValueError('runtime/actual parallel topology mismatch')
++        if sizes[2] == 8 and not runtime.dataset_identity:
++            raise ValueError('DP8 requires immutable full sampler/dataset identity')
++        if state.train_state.consumed_train_samples != runtime.iteration() * runtime.global_batch_size:
++            raise ValueError('consumed samples do not match cache cursor')
++        if runtime.iteration() != state.train_state.step:
++            raise ValueError('runtime iteration must equal Bridge train_state.step')
++        with bind_runtime(runtime):
++            if self.config.mode == 'write':
++                from .utils_logits import storage_glob_with_caching
++                import torch.distributed as dist
++                # All ranks inspect BEFORE any rank can publish a shard.
++                existing = storage_glob_with_caching(self.config.cache_dir, '*.tar')
++                if dist.is_initialized():
++                    dist.barrier()
++                if existing:
++                    raise FileExistsError('writer requires a fresh native cache directory')
++                self._saver = LogitsSaverHooks(self.config.cache_dir, self.config.top_k,
++                    p=self.config.top_p, min_k=self.config.min_k, save_dtype=self.config.save_dtype)
++                self._saver.attach_hooks(bare)
++            else:
++                self._capture = StudentLogitsCapture()
++                self._capture.attach_hooks(bare)
++                self._reader = CachedLogitsKDLoss(self.config.cache_dir,
++                    decode_threads=self.config.decode_threads, prefetch_factor=self.config.prefetch_factor,
++                    msc_prefetch_depth=self.config.msc_prefetch_depth)
++        self._model = bare
++        self._runtime = runtime
++        self._next_iteration = runtime.iteration()
++
++    def _common(self, state, iterator, model):
++        common = self.common_forward
++        if common is None:
++            from megatron.bridge.training.gpt_step import _forward_step_common
++            common = _forward_step_common
++        return common(state, iterator, model, False)
++
++    def _check_cursor(self, state):
++        if self._outstanding:
++            raise RuntimeError('previous deferred loss has not been consumed')
++        if state.train_state.step != self._next_iteration or self._runtime.iteration() != self._next_iteration:
++            raise ValueError('cache cursor iteration mismatch; skip/rerun is not supported')
++        if self._runtime.num_microbatches() * self._runtime.micro_batch_size * self._runtime.data_parallel_size != self._runtime.global_batch_size:
++            raise ValueError('microbatch ramp-up is unsupported')
++
++    def _advance(self):
++        self._microbatch += 1
++        if self._microbatch == self._runtime.num_microbatches():
++            self._microbatch = 0
++            self._next_iteration += 1
++
++    def cache_forward(self, state, data_iterator, model):
++        """Teacher-only native forward; never call a backward/optimizer step.
++
++        Core hooks require training=True. The producer explicitly controls
++        train/eval stochasticity and must freeze that policy in cache lineage.
++        """
++        import torch
++        from .runtime import bind_runtime
++        if self.config.mode != 'write':
++            raise ValueError('cache_forward requires write mode')
++        self._setup(state, model)
++        if not model.training:
++            raise ValueError('Core writer hooks require training=True')
++        self._check_cursor(state)
++        with bind_runtime(self._runtime), torch.no_grad():
++            output, _ = self._common(state, data_iterator, model)
++            self._advance()
++            if self._microbatch == 0:
++                self.flush()
++        return output
++
++    def __call__(self, state, data_iterator, model, return_schedule_plan=False):
++        import torch
++        from .runtime import bind_runtime
++        if self.config.mode != 'read':
++            raise ValueError('writer must use cache_forward without optimizer/backward')
++        if return_schedule_plan:
++            raise NotImplementedError('schedule plans are gated')
++        self._setup(state, model)
++        if model.training:
++            self._check_cursor(state)
++        with bind_runtime(self._runtime):
++            output, mask = self._common(state, data_iterator, model)
++        if not model.training:
++            def eval_loss(output_tensor):
++                loss = (output_tensor.reshape(-1).float() * mask.reshape(-1).float()).sum()
++                count = mask.sum().detach().to(torch.int)
++                return loss, count, {'lm loss': torch.stack((loss.detach(), count))}
++            return output, eval_loss
++        logits = self._capture.pop()  # bind THIS microbatch, not a later hook global
++        iteration, microbatch = self._next_iteration, self._microbatch
++        self._outstanding = True
++        used = False
++
++        def loss_function(output_tensor):
++            nonlocal used
++            if used:
++                raise RuntimeError('cached KD loss closure cannot be replayed')
++            used = True
++            with bind_runtime(self._runtime):
++                # Core normalizes logits in-place; clone prevents corruption of
++                # saved LM-loss activations and makes FP32 leaf inputs safe.
++                kd_tokens = self._reader(logits.clone(), iteration=iteration, microbatch_idx=microbatch)
++                if len(self._reader._current_values) != self._runtime.num_microbatches():
++                    raise ValueError('native cache microbatch mapping differs from fixed GBS/MBS')
++            if output_tensor.shape != mask.shape or kd_tokens.shape != mask.shape:
++                raise ValueError('cache/student/loss-mask shape mismatch')
++            lm = (output_tensor.float() * mask.float()).sum()
++            kd = (kd_tokens.float() * mask.float()).sum()
++            # Native Core TP summation is identity under the explicitly gated TP1.
++            total = (1-self.config.alpha) * lm + self.config.alpha * kd
++            if not torch.isfinite(total):
++                raise FloatingPointError('nonfinite cached KD loss')
++            count = mask.sum().clone().detach().to(torch.int)
++            report = {name: torch.stack((value.detach(), count)) for name, value in
++                      [('lm loss',lm), ('logits distillation loss',kd), ('total loss',total)]}
++            self._outstanding = False
++            self._advance()
++            return total, count, report
++        return output, loss_function
++
++    def checkpoint_binding(self):
++        if self._runtime is None or self._microbatch or self._outstanding:
++            raise RuntimeError('checkpoint binding requires a completed iteration')
++        return self._binding(self._runtime, self._next_iteration)
++
++    def flush(self):
++        if self._saver is not None:
++            path, writes, meta, msc = self._saver.take_pending_data()
++            self._saver._write_batched_tar(path, writes, meta, msc)
++
++    def close(self, *, require_complete=True):
++        from .runtime import bind_runtime
++        partial_write = self._saver is not None and self._microbatch != 0
++        try:
++            if self._saver is not None:
++                with bind_runtime(self._runtime):
++                    self.flush()
++        finally:
++            for hooks in (self._capture, self._saver):
++                if hooks is not None:
++                    hooks.remove_hooks()
++            if self._reader is not None:
++                loader_iter = self._reader._dataloader_iter
++                if loader_iter is not None and hasattr(loader_iter, '_shutdown_workers'):
++                    loader_iter._shutdown_workers()  # pinned PyTorch private lifecycle API
++                self._reader._dataloader_iter = None
++                self._reader._current_values = None
++                self._reader._current_indices = None
++            self._closed = True
++        if require_complete and partial_write:
++            raise RuntimeError('teacher cache closed with a partial iteration; not ready')
+--- /dev/null
++++ b/src/megatron/bridge/training/cached_kd/logits_saver.py
+@@ -0,0 +1,611 @@
++# Copyright (c) 2026, NVIDIA CORPORATION. All rights reserved.
++
++"""
++Utilities for saving top-K log-probabilities during model training with minimal overhead.
++
++This module provides hook-based utilities to capture and persist top-K log-probabilities
++during training while respecting tensor parallelism and minimizing communication,
++computation, I/O, and disk space overhead.
++
++The forward hook accumulates raw logits across microbatches and, once all microbatches
++have been collected, converts them to log-probs and writes them to disk in a single I/O call.
++
++For efficient global top-K log-prob computation across TP ranks:
++- Local top-K is computed on fp32 logits first to avoid materializing
++  a full vocab-sized log-softmax tensor
++- The log-softmax denominator (log-sum-exp) is computed TP-aware and applied
++  only to the top-K values
++- Local candidates are gathered to TP rank 0 for global top-K selection
++- TP rank 0 saves the full top-K log-probabilities (unsharded)
++
++Index storage optimization:
++- Global vocab requires 17 bits, so we store lower 16 bits as uint16
++- The 17th bit is stored separately as torch.bool (same shape as indices)
++- To reconstruct: global_index = (bit_17 << 16) | low_16_bits
++"""
++
++import io
++import json
++import logging
++import os
++import tarfile
++from collections import OrderedDict
++from types import MethodType
++from typing import Any, Dict, List, Optional, Tuple
++
++import torch
++import torch.distributed as dist
++
++try:
++    import zstandard
++
++    HAVE_ZSTANDARD = True
++except ImportError:
++    HAVE_ZSTANDARD = False
++
++from megatron.core import parallel_state
++from megatron.core.models.common.language_module.language_module import LanguageModule
++from megatron.core.msc_utils import MultiStorageClientFeature
++from .runtime import get_num_microbatches
++from .runtime import get_args, get_tensorboard_writer
++from .runtime import print_rank_0
++from .utils_logits import (
++    CACHED_LOGITS_INDEX_SENTINEL,
++    CACHED_LOGITS_LOGPROB_SENTINEL,
++    LOGPROBS_TAR_MEMBER_SUFFIX,
++    META_TAR_MEMBER,
++    batched_tar_filename,
++    compute_dataset_hash,
++    get_current_iteration,
++    is_remote_storage_path,
++    open_logit_file,
++    pack_indices,
++    storage_makedirs,
++    storage_move,
++)
++
++logger = logging.getLogger(__name__)
++
++# Module-level reference so checkpoint/shutdown code can call flush().
++_ACTIVE_LOGITS_SAVER: Optional["LogitsSaverHooks"] = None
++
++
++def get_logits_saver() -> Optional["LogitsSaverHooks"]:
++    """Return the active :class:`LogitsSaverHooks` instance, or *None*."""
++    return _ACTIVE_LOGITS_SAVER
++
++
++_MAX_VOCAB_SIZE = 2 ** 17  # 131072 - maximum supported vocab size
++
++class LogitsSaverHooks:
++    """
++    Hook-based utility to save top-K log-probabilities during training with minimal overhead.
++
++    This class provides a forward hook to attach to the module that outputs logits.
++    The hook accumulates logits across microbatches and saves all log-probs to disk
++    in a single I/O call once all microbatches have been collected.
++
++    Top-K selection is performed on raw logits first, then log-probabilities
++    are computed only for the selected positions using the log-softmax
++    denominator (log-sum-exp).  Because log-softmax is monotonically
++    increasing, the top-K positions are identical to those of the raw logits.
++    This avoids materializing a full vocab-sized log-softmax tensor.
++
++    The implementation efficiently handles tensor parallelism by:
++    - Computing local top-K on fp32 logits to reduce memory and communication
++    - Concatenating values and indices before all_gather
++    - Computing global top-K from gathered results
++    - Having TP rank 0 save the full top-K for each CP/DP rank
++
++    When ``p`` is set, a top-P (nucleus) mask is applied after global top-K
++    selection.  The K dimension is truncated to the maximum per-token nucleus
++    size (reducing the amount of data written to disk), and tokens whose
++    nucleus is smaller than that maximum have their trailing entries masked
++    with cached-logit value/index sentinels.  These sentinels are
++    compatible with :func:`topk_kl_div` in ``cached_logits_loss.py`` because
++    the value sentinel makes the masked teacher probability effectively zero.
++    At least ``min_k`` entries are always kept per token.
++
++    Indices are stored efficiently: uint16 for lower 16 bits + separate high bit tensor.
++    CP and DP ranks are stored in the tar filename for flexibility with multi-digit values.
++
++    Iteration data is accumulated in memory and flushed as a tar archive at
++    checkpoint time via the async checkpoint queue.  Call :meth:`flush` at
++    shutdown to write any remaining buffered data synchronously.
++
++    Args:
++        save_dir: Directory to save log-prob files
++        k: Number of top log-probabilities to save globally
++        p: Optional top-P (nucleus) threshold applied after global top-K
++            selection.  When set, only the smallest set of leading entries
++            per token whose cumulative probability mass reaches ``p`` is
++            kept; remaining entries are masked with cached-logit value/index
++            sentinels.
++        min_k: Minimum number of entries kept per token when top-P masking
++            is active, regardless of cumulative mass.  Defaults to 1.
++        save_dtype: String name of the dtype for top-K log-probabilities on
++            disk.  One of ``'fp16'``, ``'bf16'``, or ``'fp32'``.
++    """
++
++    _DTYPE_MAP = {
++        'fp16': torch.float16,
++        'bf16': torch.bfloat16,
++        'fp32': torch.float32,
++    }
++
++    def __init__(
++        self,
++        save_dir: str,
++        k: int,
++        *,
++        p: Optional[float] = None,
++        min_k: int = 1,
++        save_dtype: str = 'fp16',
++    ):
++        assert k > 0, "Number of top log-probabilities to save must be positive"
++        assert save_dir is not None, "Save directory must be provided"
++        if save_dtype not in self._DTYPE_MAP:
++            raise ValueError(
++                f"save_dtype must be one of {list(self._DTYPE_MAP)}, got '{save_dtype}'"
++            )
++        self._save_dtype = self._DTYPE_MAP[save_dtype]
++
++        if p is not None and not (0.0 < p <= 1.0):
++            raise ValueError(
++                f"p must be in (0, 1] or None, got {p}"
++            )
++        if min_k < 1:
++            raise ValueError(
++                f"min_k must be >= 1, got {min_k}"
++            )
++
++        self.save_dir = save_dir
++        self.k = k
++        self.p = p
++        self.min_k = min_k
++
++        # Parallel state info
++        self.tp_rank = parallel_state.get_tensor_model_parallel_rank()
++        self.tp_size = parallel_state.get_tensor_model_parallel_world_size()
++        self.tp_group = parallel_state.get_tensor_model_parallel_group()
++        self.cp_rank = parallel_state.get_context_parallel_rank()
++        self.dp_rank = parallel_state.get_data_parallel_rank()
++        self._tp_dst_rank_global = parallel_state.get_tensor_model_parallel_src_rank()
++
++        # Track number of MTP outputs to ignore
++        args = get_args()
++        self._mtp_num_layers = args.mtp_num_layers or 0
++        self._curr_mtp_passes = 0
++
++        # Dataset-identity hash + serialised metadata, written as the
++        # first member of every batched tar so the student loader can
++        # verify alignment per-tar without an extra tarfile.open.
++        self.dataset_hash, self._dataset_identifiers = compute_dataset_hash()
++        self.metadata_dict: Dict[str, Any] = {
++            "hash": self.dataset_hash,
++            "identifiers": self._dataset_identifiers,
++            "saver": {
++                "k": self.k,
++                "p": self.p,
++                "min_k": self.min_k,
++                "save_dtype": save_dtype,
++            },
++        }
++        self._meta_bytes: bytes = json.dumps(
++            self.metadata_dict, sort_keys=False, separators=(',', ':'),
++        ).encode("utf-8")
++
++        # Hook states – store already-processed top-K results (not full logits)
++        self._accumulated_results: List[Tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = []
++        self._hook_handles: List[Any] = []
++        self._loss_overrides: List[Tuple[torch.nn.Module, Any]] = []
++
++        # Batched tar state — accumulates until checkpoint time.
++        self._pending_writes: OrderedDict[int, bytes] = OrderedDict()
++
++        # Top-P logging: per-microbatch kept counts (populated by _apply_topp_truncation)
++        self._topp_kept_counts: List[float] = []
++
++        # Create save directory if needed
++        storage_makedirs(self.save_dir, exist_ok=True)
++
++        # Register as the active saver so checkpoint code can flush
++        global _ACTIVE_LOGITS_SAVER
++        _ACTIVE_LOGITS_SAVER = self
++
++    def _forward_hook(
++        self,
++        module: torch.nn.Module,
++        input: Any,
++        output: Tuple[torch.Tensor, ...],
++    ) -> None:
++        """Capture top-K log-probs for one output-layer forward.
++
++        This hook should be registered on the module that outputs logits.
++        Each microbatch is processed immediately to extract only the small
++        top-K values and indices, avoiding storage of full vocab-sized logits
++        across microbatches.
++        """
++        if not module.training:
++            return
++
++        if self._curr_mtp_passes == self._mtp_num_layers:
++            # Main output logits come after MTP logits.
++            logits = output[0] if isinstance(output, tuple) else output
++
++            with torch.no_grad():
++                result = self._process_single_microbatch(logits)
++            if result is not None:
++                self._accumulated_results.append(result)
++
++            if len(self._accumulated_results) == get_num_microbatches():
++                self._save_accumulated_log_probs()
++                self._accumulated_results.clear()
++
++            self._curr_mtp_passes = 0
++        else:
++            self._curr_mtp_passes += 1
++
++    def attach_hooks(self, model: LanguageModule) -> None:
++        """Attach logits-saving hooks and skip expensive LM loss computation.
++
++        Args:
++            model: Model to instrument.
++        """
++        fwd_handle = model.output_layer.register_forward_hook(self._forward_hook)
++        self._hook_handles.append(fwd_handle)
++        self._override_language_model_loss(model)
++
++    def _override_language_model_loss(self, model: LanguageModule) -> None:
++        """Replace LM loss with a zero-valued tensor that preserves gradient edges."""
++        def _compute_zero_language_model_loss(_self, _labels, logits):
++            return (logits * 0).sum(dim=-1).transpose(0, 1).contiguous()
++
++        original_loss = model.compute_language_model_loss
++        self._loss_overrides.append((model, original_loss))
++        model.compute_language_model_loss = MethodType(_compute_zero_language_model_loss, model)
++
++    def remove_hooks(self) -> None:
++        """Remove all registered hooks."""
++        for handle in self._hook_handles:
++            handle.remove()
++        self._hook_handles.clear()
++        for model_chunk, original_loss in self._loss_overrides:
++            model_chunk.compute_language_model_loss = original_loss
++        self._loss_overrides.clear()
++
++    def _save_accumulated_log_probs(self) -> None:
++        """Move accumulated top-K results to CPU and save to disk.
++
++        By this point each microbatch has already been processed in the
++        forward hook, so this method only transfers the small top-K tensors
++        to CPU and writes them out in a single I/O call.
++        """
++        if self.tp_rank != 0:
++            return
++        if not self._accumulated_results:
++            logger.warning("No accumulated log-probs to save")
++            return
++
++        all_values = []
++        all_indices_low = []
++        all_high_bits = []
++
++        for values, indices_low, high_bit in self._accumulated_results:
++            all_values.append(values.cpu())
++            all_indices_low.append(indices_low.cpu())
++            all_high_bits.append(high_bit.cpu())
++
++        self._buffer_iteration(all_values, all_indices_low, all_high_bits)
++
++        if self._topp_kept_counts:
++            # Log the average number of top-P kept tokens per microbatch to tensorboard
++            avg_kept = sum(self._topp_kept_counts) / len(self._topp_kept_counts)
++            self._topp_kept_counts.clear()
++            if (writer := get_tensorboard_writer()) is not None:
++                writer.add_scalar('avg-logprobs-kept', avg_kept, get_current_iteration())
++
++    def _process_single_microbatch(
++        self, logits: torch.Tensor
++    ) -> Optional[Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
++        """Process a single logits tensor and return top-K log-probability data.
++
++        Selects local top-K positions on raw logits first, then computes
++        the global log-sum-exp denominator using ``torch.logsumexp`` for
++        the local shard (leveraging PyTorch's fused CUDA kernel) combined
++        across TP ranks via a numerically stable log-space reduction.
++        This avoids materializing a full vocab-sized log-softmax tensor.
++
++        All TP ranks participate in the collective operations (all-reduce for
++        the log-sum-exp combination, gather for top-K candidates), but only
++        TP rank 0 performs the final global top-K and returns the result.
++        Other ranks return ``None``.
++
++        Args:
++            logits: Tensor of shape (seq_len, batch, local_vocab_size)
++
++        Returns:
++            Tuple of (log_prob_values, indices_low, high_bit) on TP rank 0,
++            ``None`` on other TP ranks.
++        """
++        local_vocab_size = logits.shape[-1]
++        global_vocab_size = local_vocab_size * self.tp_size
++
++        assert global_vocab_size <= _MAX_VOCAB_SIZE, (
++            f"Global vocab size {global_vocab_size} exceeds maximum supported {_MAX_VOCAB_SIZE} (17 bits)"
++        )
++
++        effective_k = min(self.k, global_vocab_size)
++        local_k = min(effective_k, local_vocab_size)
++
++        # Convert to fp32 to lessen precision issues
++        logits = logits.float()
++
++        local_logit_vals, local_indices = torch.topk(logits, local_k, dim=-1)
++
++        # Local log-sum-exp via PyTorch's fused CUDA kernel
++        local_lse = torch.logsumexp(logits, dim=-1, keepdim=True)
++
++        if self.tp_size > 1:
++            # Combine local log-sum-exp values across TP ranks using
++            # the standard numerically stable log-space reduction:
++            #   global_lse = max_lse + log(sum_i(exp(lse_i - max_lse)))
++            max_lse = local_lse.clone()
++            dist.all_reduce(max_lse, op=dist.ReduceOp.MAX, group=self.tp_group)
++            sum_exp_lse = torch.exp(local_lse - max_lse)
++            dist.all_reduce(sum_exp_lse, op=dist.ReduceOp.SUM, group=self.tp_group)
++            global_lse = max_lse + torch.log(sum_exp_lse)
++        else:
++            global_lse = local_lse
++
++        local_logprob_vals = local_logit_vals - global_lse
++
++        if self.tp_size > 1:
++            result = self._compute_global_topk(
++                local_logit_vals, local_logprob_vals, local_indices, effective_k, local_vocab_size
++            )
++            if result is None:
++                return None
++            global_values, global_indices = result
++        else:
++            global_values, global_indices = local_logprob_vals, local_indices
++
++        if self.p is not None:
++            global_values, global_indices = self._apply_topp_truncation(
++                global_values, global_indices,
++            )
++
++        global_values = global_values.to(self._save_dtype)
++        indices_low, high_bit = pack_indices(global_indices)
++
++        return global_values, indices_low, high_bit
++
++    def _compute_global_topk(
++        self,
++        local_logit_vals: torch.Tensor,
++        local_logprob_vals: torch.Tensor,
++        local_indices: torch.Tensor,
++        k: int,
++        local_vocab_size: int,
++    ) -> Optional[Tuple[torch.Tensor, torch.Tensor]]:
++        """Gather local top-K candidates to rank 0 and compute global top-K.
++
++        The ranking is performed on fp32 *logit* values for numerical
++        precision; the returned log-prob values are still fp32 here and
++        are only cast to the on-disk ``save_dtype`` by the caller.
++
++        Only TP rank 0 receives the gathered data and performs the final
++        top-K selection.  Other ranks return ``None`` after participating
++        in the ``gather`` collective.
++
++        Args:
++            local_logit_vals: Local top-K fp32 logit values (seq, batch, local_k)
++            local_logprob_vals: Local top-K fp32 log-prob values at the
++                same positions (seq, batch, local_k)
++            local_indices: Local top-K indices in [0, local_vocab_size)
++            k: Target number of top elements
++            local_vocab_size: Size of the local vocab shard (vocab_size / tp_size)
++
++        Returns:
++            Tuple of (global_logprob_values, global_indices) on TP rank 0,
++            ``None`` on other TP ranks.
++        """
++        vocab_offset = self.tp_rank * local_vocab_size
++        global_indices = local_indices + vocab_offset
++
++        # Pack logits, log-probs, and indices into a single tensor.
++        # fp32 can exactly represent integers up to 2^24, sufficient for
++        # 17-bit vocab indices.  Shape: (seq, batch, local_k, 3)
++        combined = torch.stack(
++            [local_logit_vals,
++             local_logprob_vals.float(),
++             global_indices.float()],
++            dim=-1,
++        )
++
++        if self.tp_rank == 0:
++            gather_list = [torch.empty_like(combined) for _ in range(self.tp_size)]
++        else:
++            gather_list = None
++        dist.gather(combined, gather_list, dst=self._tp_dst_rank_global, group=self.tp_group)
++
++        if self.tp_rank != 0:
++            return None
++
++        # (seq, batch, tp_size * local_k, 3)
++        gathered = torch.cat(gather_list, dim=-2)
++
++        gathered_logits = gathered[..., 0]
++        gathered_logprobs = gathered[..., 1].to(local_logprob_vals.dtype)
++        gathered_indices = gathered[..., 2].to(local_indices.dtype)
++
++        _, topk_positions = torch.topk(gathered_logits, k, dim=-1)
++
++        topk_logprobs = torch.gather(gathered_logprobs, -1, topk_positions)
++        topk_global_indices = torch.gather(gathered_indices, -1, topk_positions)
++
++        return topk_logprobs, topk_global_indices
++
++    def _apply_topp_truncation(
++        self,
++        values: torch.Tensor,
++        indices: torch.Tensor,
++    ) -> Tuple[torch.Tensor, torch.Tensor]:
++        """Apply top-P (nucleus) mask to already-sorted top-K log-probs.
++
++        Keeps the smallest set of leading entries per token whose
++        cumulative probability mass is at least ``self.p``, with a floor
++        of ``self.min_k`` kept entries.
++
++        Because the number of surviving entries varies per token, the K
++        dimension is truncated to the *maximum* kept count across all
++        tokens in the microbatch.  Tokens whose individual nucleus is
++        smaller than that maximum have their trailing entries masked with
++        cached-logit value/index sentinels.  These sentinels are compatible
++        with :func:`topk_kl_div` because the value sentinel makes masked
++        teacher probability effectively zero.
++
++        Args:
++            values: Top-K log-prob values, sorted descending along the
++                last dimension.  Shape ``(seq, batch, K)``.
++            indices: Corresponding global vocab indices (int64).
++
++        Returns:
++            Tuple of ``(values, indices)`` with K dimension truncated to
++            the maximum per-token nucleus size, and trailing out-of-nucleus
++            entries masked with sentinels.
++        """
++        probs = values.float().exp()
++        cumprobs = probs.cumsum(dim=-1)
++        # Standard nucleus rule: keep entry i iff the cumulative mass
++        # *before* it is < p.  This guarantees we include the entry
++        # that crosses the threshold and always keeps top-1.
++        keep_mask = (cumprobs - probs) < self.p
++
++        k = values.size(-1)
++        min_keep = min(self.min_k, k)
++        arange = torch.arange(k, device=values.device)
++        keep_mask = keep_mask | (arange < min_keep)
++
++        kept_per_token = keep_mask.sum(dim=-1)
++        # For logging purposes
++        self._topp_kept_counts.append(kept_per_token.float().mean().item())
++
++        # Truncate to reduce storage
++        max_kept = int(kept_per_token.max().item())
++        values = values[..., :max_kept]
++        indices = indices[..., :max_kept]
++        keep_mask = keep_mask[..., :max_kept]
++
++        # Mask out-of-nucleus entries
++        values = torch.where(keep_mask, values, CACHED_LOGITS_LOGPROB_SENTINEL)
++        indices = torch.where(keep_mask, indices, CACHED_LOGITS_INDEX_SENTINEL)
++        # The index sentinel does not survive pack_indices()/unpack_indices();
++        # topk_kl_div() also masks by the value sentinel to compensate.
++
++        return values, indices
++
++    def _buffer_iteration(
++        self,
++        values_list: List[torch.Tensor],
++        indices_low_list: List[torch.Tensor],
++        bit_17_list: List[torch.Tensor],
++    ) -> None:
++        """Serialize microbatch data and buffer for async flush at checkpoint time.
++
++        File format: serialized dict with:
++        - values: list of tensors of log-probabilities (one per microbatch)
++          in ``self._save_dtype`` (default ``torch.float16``)
++        - indices_low: list of uint16 tensors (lower 16 bits of vocab indices)
++        - bit_17: list of bool tensors (17th bit, same shape as indices_low)
++        """
++        # Serialize all tensors together
++        buffer = io.BytesIO()
++        torch.save({
++            'values': values_list,
++            'indices_low': indices_low_list,
++            'bit_17': bit_17_list,
++        }, buffer)
++        data = buffer.getvalue()
++        iteration = get_current_iteration()
++        self._pending_writes[iteration] = data
++
++    # ------------------------------------------------------------------
++    #  Flush helpers
++    # ------------------------------------------------------------------
++
++    def take_pending_data(self) -> Tuple[str, "OrderedDict[int, bytes]", bytes, bool]:
++        """Take ownership of buffered data for async flush at checkpoint time.
++
++        Returns:
++            Tuple of (tar_path, writes, meta_bytes, msc_enabled).  If there is
++            no pending data (e.g. non-TP-rank-0), ``writes`` will be an empty
++            OrderedDict and ``tar_path`` will be an empty string.
++        """
++        # NOTE: We need to re-enabled MSC in the async saving process, so we pass this flag.
++        msc_enabled = MultiStorageClientFeature.is_enabled()
++
++        if not self._pending_writes:
++            return ("", OrderedDict(), self._meta_bytes, msc_enabled)
++
++        writes = self._pending_writes
++        self._pending_writes = OrderedDict()
++
++        last_iter = max(writes.keys())
++        tar_filename = batched_tar_filename(
++            self.cp_rank, self.dp_rank, last_iter,
++        )
++        tar_path = os.path.join(self.save_dir, tar_filename)
++        print_rank_0(f"Handing off {len(writes)} logit iterations for async flush")
++        return (tar_path, writes, self._meta_bytes, msc_enabled)
++
++    @staticmethod
++    def _write_batched_tar(
++        tar_path: str,
++        writes: "OrderedDict[int, bytes]",
++        meta_bytes: bytes,
++        msc_enabled: bool = False,
++    ) -> None:
++        """Write a tar archive containing multiple iterations.
++
++        Called in the async checkpoint background process.  Early-returns
++        when there is nothing to write (non-TP-rank-0 ranks).
++
++        The dataset-identity metadata is written as the **first** member
++        (named :data:`META_TAR_MEMBER`) so the student-side tar reader
++        sees it before any payload members and can
++        verify alignment before any iteration data is decoded.
++
++        Each subsequent member is named ``{iteration}.pt.zst`` so that
++        the student-side tar reader can stream iterations by member name.
++        """
++        if not writes:
++            return
++        if msc_enabled:
++            # NOTE: MSC is not enabled in the async saving process by default.
++            MultiStorageClientFeature.enable()
++
++        if not HAVE_ZSTANDARD:
++            raise ImportError(
++                "zstandard is required to write batched logit tars. "
++                "Install via `pip install zstandard`."
++            )
++
++        storage_makedirs(os.path.dirname(tar_path), exist_ok=True)
++        write_path = tar_path if is_remote_storage_path(tar_path) else f"{tar_path}.tmp"
++        compressor = zstandard.ZstdCompressor(level=3)
++
++        with open_logit_file(write_path, "wb") as stream:
++            with tarfile.open(fileobj=stream, mode="w") as tar:
++                info = tarfile.TarInfo(name=META_TAR_MEMBER)
++                info.size = len(meta_bytes)
++                tar.addfile(info, io.BytesIO(meta_bytes))
++
++                for iteration, data in writes.items():
++                    data = compressor.compress(data)
++                    member_name = f"{iteration}{LOGPROBS_TAR_MEMBER_SUFFIX}"
++                    info = tarfile.TarInfo(name=member_name)
++                    info.size = len(data)
++                    tar.addfile(info, io.BytesIO(data))
++        if write_path != tar_path:
++            storage_move(write_path, tar_path)
+--- /dev/null
++++ b/src/megatron/bridge/training/cached_kd/runtime.py
+@@ -0,0 +1,87 @@
++"""Explicit Bridge-to-Core dependency binding, never megatron.training globals.
++
++A binding is process-local, non-reentrant and synchronous. Native DataLoader
++workers inherit the bound dataset identity under Linux fork; spawn is rejected
++by the integration adapter until worker context transport is implemented.
++"""
++from contextlib import contextmanager
++from dataclasses import dataclass
++from types import SimpleNamespace
++from typing import Callable
++
++
++@dataclass(frozen=True)
++class CoreRuntime:
++    seed: int
++    seq_length: int
++    train_samples: int
++    global_batch_size: int
++    micro_batch_size: int
++    blend: object
++    blend_per_split: object
++    iteration: Callable[[], int]
++    num_microbatches: Callable[[], int]
++    mtp_num_layers: int = 0
++    tensorboard_writer: object = None
++    data_parallel_size: int = 1
++    expert_parallel_size: int = 1
++    dataset_identity: str | None = None
++
++
++def validate_topology(*, tp, cp, dp, pp, ep, gbs, mbs, microbatches):
++    """Only single-rank or DP8/EP8 layouts; preserve native Core sharding."""
++    if (tp, cp, dp, pp, ep) not in ((1, 1, 1, 1, 1), (1, 1, 8, 1, 8)):
++        raise NotImplementedError('only TP1/CP1/PP1 DP1/EP1 or DP8/EP8 are supported')
++    if min(gbs, mbs, microbatches) < 1 or gbs != dp * mbs * microbatches:
++        raise ValueError('fixed GBS = DP * MBS * native microbatches required')
++    return dp
++
++
++_ACTIVE = None
++
++
++def current_runtime():
++    if _ACTIVE is None:
++        raise RuntimeError('Core cached KD runtime is not bound')
++    return _ACTIVE
++
++
++@contextmanager
++def bind_runtime(runtime):
++    global _ACTIVE
++    if _ACTIVE is not None:
++        raise RuntimeError('nested Core cached KD binding is unsupported')
++    _ACTIVE = runtime
++    try:
++        yield runtime
++    finally:
++        _ACTIVE = None
++
++
++def get_args():
++    r = current_runtime()
++    return SimpleNamespace(seed=r.seed, seq_length=r.seq_length,
++                           train_samples=r.train_samples,
++                           global_batch_size=r.global_batch_size,
++                           micro_batch_size=r.micro_batch_size,
++                           mtp_num_layers=r.mtp_num_layers,
++                           curr_iteration=r.iteration())
++
++
++def get_blend_and_blend_per_split(args):
++    r = current_runtime()
++    return r.blend, r.blend_per_split
++
++
++def get_num_microbatches():
++    return current_runtime().num_microbatches()
++
++
++def get_tensorboard_writer():
++    return current_runtime().tensorboard_writer
++
++
++def print_rank_0(message):
++    import torch.distributed as dist
++    if not dist.is_initialized() or dist.get_rank() == 0:
++        print(message, flush=True)
+--- /dev/null
++++ b/src/megatron/bridge/training/cached_kd/utils_logits.py
+@@ -0,0 +1,482 @@
++# Copyright (c) 2026, NVIDIA CORPORATION. All rights reserved.
++
++"""Storage helpers for cached-logit tar shards.
++
++This module keeps object-storage and tar-format plumbing out of the cached
++logits writer/reader code paths.  The helpers are intentionally small and
++focused on the current batched tar layout.
++"""
++
++import concurrent.futures
++import hashlib
++import fnmatch
++import glob
++import io
++import json
++import logging
++import os
++import re
++import tarfile
++import time
++from collections import OrderedDict
++from typing import Any, Dict, Iterable, Iterator, List, NamedTuple, Optional, Sequence, Tuple
++
++import torch
++import torch.distributed as dist
++from torch.utils.data import get_worker_info
++
++try:
++    import zstandard
++
++    HAVE_ZSTANDARD = True
++except ImportError:
++    HAVE_ZSTANDARD = False
++
++from megatron.core.msc_utils import MultiStorageClientFeature, maybe_msc
++from .runtime import get_args
++from .runtime import get_blend_and_blend_per_split
++
++logger = logging.getLogger(__name__)
++
++MSC_PREFIX = "msc://"
++
++# Matches batched tar filenames (``cp{C}_dp{D}__{I}.tar``).  Named groups:
++#   cp   – CP rank
++#   dp   – DP rank
++#   iter – trailing iteration number *I*
++BATCHED_TAR_RE = re.compile(
++    r"^cp(?P<cp>\d+)_dp(?P<dp>\d+)__(?P<iter>\d+)\.tar$"
++)
++
++# Name of the metadata member written as the first entry of every batched
++# tar. Contains the dataset-identity hash and the fields that produced it.
++META_TAR_MEMBER = "_meta.json"
++
++LOGPROBS_TAR_MEMBER_SUFFIX = ".pt.zst"
++
++# Matches compressed iteration payload members inside a batched tar archive.
++LOGPROBS_TAR_MEMBER_RE = re.compile(
++    rf"^(?P<iter>\d+){re.escape(LOGPROBS_TAR_MEMBER_SUFFIX)}$"
++)
++
++CACHED_LOGITS_LOGPROB_SENTINEL = -1e3
++CACHED_LOGITS_INDEX_SENTINEL = -1
++
++# Cache to not have to re-run the glob operation for the same pattern, which is expensive for MSC.
++_STORAGE_GLOB_CACHE: dict[str, List[str]] = {}
++
++
++def is_msc_path(path: str) -> bool:
++    """Return whether *path* is an MSC URL."""
++    return str(path).startswith(MSC_PREFIX)
++
++
++def is_remote_storage_path(path: str) -> bool:
++    """Return whether *path* needs object-storage handling."""
++    return is_msc_path(path)
++
++
++def _require_msc():
++    """Return the MSC package or raise a Megatron-style feature error."""
++    return MultiStorageClientFeature.import_package()
++
++
++def _msc_if_needed(path: str):
++    if is_msc_path(path):
++        return _require_msc()
++    if MultiStorageClientFeature.is_enabled():
++        return MultiStorageClientFeature.import_package()
++    return None
++
++
++def storage_basename(path: str) -> str:
++    """Return the final path component for local paths and MSC URLs."""
++    return os.path.basename(str(path).rstrip("/"))
++
++
++def storage_makedirs(path: str, exist_ok: bool = True) -> None:
++    """Create a local or MSC directory/prefix."""
++    if not path:
++        return
++    maybe_msc.os.makedirs(path, exist_ok=exist_ok)
++
++
++def storage_move(src: str, dst: str) -> None:
++    """Atomically publish a local temporary file."""
++    if is_msc_path(src) or is_msc_path(dst):
++        raise ValueError("storage_move is local-only; write MSC objects directly")
++
++    os.replace(src, dst)
++
++
++def storage_glob(pattern: str) -> List[str]:
++    """Return paths matching *pattern* for local files or MSC URLs."""
++    if is_msc_path(pattern):
++        msc = _require_msc()
++        return list(msc.glob(pattern))
++
++    return glob.glob(pattern)
++
++
++def _storage_glob_rank0(pattern: str, cached: bool = False) -> List[str]:
++    """Run ``storage_glob`` on rank 0 and broadcast the result."""
++    if cached:
++        if (paths := _STORAGE_GLOB_CACHE.get(pattern)) is not None:
++            return paths
++
++    if dist.is_available() and dist.is_initialized() and dist.get_world_size() > 1:
++        payload = [storage_glob(pattern) if dist.get_rank() == 0 else None]
++        dist.broadcast_object_list(payload, src=0)
++        paths = payload[0]
++    else:
++        paths = storage_glob(pattern)
++
++    paths = list(paths or [])
++    _STORAGE_GLOB_CACHE[pattern] = paths
++    return paths
++
++
++def storage_glob_with_caching(root: str, name_pattern: str, cached: bool = True) -> List[str]:
++    """Glob under *root* and filter the result by basename."""
++    if not is_remote_storage_path(root):
++        return storage_glob(os.path.join(root, name_pattern))
++    if get_worker_info() is not None:
++        raise RuntimeError(
++            "Remote cached-logits shard listing must run in the main "
++            "training process, not a DataLoader worker."
++        )
++    listing = _storage_glob_rank0(os.path.join(root, "*.tar"), cached=cached)
++
++    return [
++        str(path)
++        for path in listing
++        if fnmatch.fnmatch(storage_basename(str(path)), name_pattern)
++    ]
++
++
++def get_current_iteration() -> int:
++    """Return the current training iteration from ``get_args()``."""
++    args = get_args()
++    iteration = getattr(args, 'curr_iteration', None)
++    if iteration is None:
++        iteration = getattr(args, 'iteration')
++    return iteration
++
++
++def _blend_identifiers(args: Any) -> Dict[str, Any]:
++    """Build a path-agnostic representation of the training data blend."""
++    blend, blend_per_split = get_blend_and_blend_per_split(args)
++
++    def _normalise(blend_tuple) -> Optional[List[List[Any]]]:
++        if blend_tuple is None:
++            return None
++        prefixes, weights = blend_tuple
++        if weights is None:
++            weights = [1.0] * len(prefixes)
++        return [
++            [float(w), os.path.splitext(os.path.basename(str(p)))[0]]
++            for w, p in zip(weights, prefixes)
++        ]
++
++    if blend is not None:
++        return {"kind": "blend", "blend": _normalise(blend)}
++    if blend_per_split is not None:
++        # Index 0 is the train split (see ``megatron.core.datasets.utils.Split``).
++        return {"kind": "blend_per_split", "train": _normalise(blend_per_split[0])}
++    return {"kind": "mock", "mock": True}
++
++
++def compute_dataset_hash() -> Tuple[str, Dict[str, Any]]:
++    """Compute the dataset-identity hash for the current training run.
++
++    The fields included are exactly those that determine the global sample
++    stream itself: ``seed``, ``sequence_length``, ``train_samples`` (with a
++    fall-back to ``train_iters * global_batch_size``), and the data ``blend``.
++    """
++    args = get_args()
++    train_samples = getattr(args, 'train_samples', None)
++    if train_samples is None:
++        train_iters = getattr(args, 'train_iters', None)
++        global_batch_size = getattr(args, 'global_batch_size', None)
++        if train_iters is not None and global_batch_size is not None:
++            train_samples = int(train_iters) * int(global_batch_size)
++
++    identifiers = OrderedDict()
++    identifiers["seed"] = getattr(args, 'seed', None)
++    identifiers["sequence_length"] = getattr(args, 'seq_length', None)
++    identifiers["train_samples"] = train_samples
++    identifiers["blend"] = _blend_identifiers(args)
++
++    description = json.dumps(identifiers, sort_keys=False, separators=(',', ':'))
++    md5_hex = hashlib.md5(
++        description.encode("utf-8"), usedforsecurity=False
++    ).hexdigest()
++    return md5_hex, dict(identifiers)
++
++
++def batched_tar_filename(cp_rank: int, dp_rank: int, last_iter: int) -> str:
++    """Return the filename for a cp-dp batched tar shard."""
++    return f"cp{cp_rank}_dp{dp_rank}__{last_iter}.tar"
++
++
++def batched_tar_prefix(cp_rank: int, dp_rank: int) -> str:
++    """Return the glob prefix for cp-dp batched tar shards."""
++    return f"cp{cp_rank}_dp{dp_rank}__"
++
++
++def sorted_batched_tars(paths: List[str]) -> List[str]:
++    """Sort batched tar paths by their iteration number (numeric, ascending)."""
++    keyed = []
++    for path in paths:
++        if match := BATCHED_TAR_RE.match(storage_basename(path)):
++            keyed.append((int(match.group("iter")), path))
++    keyed.sort()
++    return [path for _, path in keyed]
++
++
++def pack_indices(indices: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
++    """Split 17-bit global indices into uint16 lower bits + bool 17th bit."""
++    low_bits = (indices & 0xFFFF).to(torch.uint16)
++    bit_17 = (indices >> 16).to(torch.bool)
++    return low_bits, bit_17
++
++
++def unpack_indices(low_bits: torch.Tensor, bit_17: torch.Tensor) -> torch.Tensor:
++    """Reconstruct indices from uint16 lower bits + bool 17th bit."""
++    return (bit_17.long() << 16) | low_bits.long()
++
++
++class LogprobsTarEntry(NamedTuple):
++    """Raw cached-logits payload read from one batched tar member."""
++
++    iteration: int
++    data: bytes
++
++
++def open_logit_file(path: str, mode: str = "rb", **kwargs):
++    """Open a local or MSC file, filtering MSC-only kwargs for builtin open."""
++    msc = _msc_if_needed(path)
++    if msc is not None:
++        return msc.open(path, mode, **kwargs)
++
++    msc_open_kwargs = {
++        "attributes",
++        "check_source_version",
++        "disable_read_cache",
++        "memory_load_limit",
++        "prefetch_file",
++    }
++    local_kwargs = {k: v for k, v in kwargs.items() if k not in msc_open_kwargs}
++    return open(path, mode, **local_kwargs)
++
++
++def _verify_logprobs_metadata(
++    data: bytes,
++    *,
++    tar_path: str,
++    expected_hash: Optional[str],
++) -> None:
++    """Validate the per-tar dataset hash stored in ``_meta.json``."""
++    if expected_hash is None:
++        return
++    saved_hash = json.loads(data).get("hash")
++    if saved_hash != expected_hash:
++        raise RuntimeError(
++            f"Teacher tar {tar_path} was saved with hash {saved_hash} "
++            f"but the current student run has hash {expected_hash}. "
++            "Data does not align!"
++        )
++
++
++def iter_logprobs_tar_entries(
++    tar_path: str,
++    *,
++    start_iteration: int = 0,
++    expected_hash: Optional[str] = None,
++) -> Iterator[LogprobsTarEntry]:
++    """Stream cached-logits payload members from a batched tar archive.
++
++    The tar format is written by :class:`LogitsSaverHooks`: a leading
++    ``_meta.json`` member followed by ``{iteration}.pt.zst`` payloads.
++    Members before *start_iteration* are skipped before their payload bytes
++    are materialized in Python.
++    """
++    metadata_seen = False
++
++    with open_logit_file(tar_path, "rb", prefetch_file=True) as stream:
++        with tarfile.open(fileobj=stream, mode="r|*") as tar:
++            for member in tar:
++                if not member.isreg():
++                    continue
++
++                name = member.name
++                if name == META_TAR_MEMBER:
++                    extracted = tar.extractfile(member)
++                    if extracted is None:
++                        raise RuntimeError(f"Could not read metadata member in '{tar_path}'")
++                    _verify_logprobs_metadata(
++                        extracted.read(),
++                        tar_path=tar_path,
++                        expected_hash=expected_hash,
++                    )
++                    metadata_seen = True
++                    continue
++
++                match = LOGPROBS_TAR_MEMBER_RE.match(name)
++                if match is None:
++                    continue
++
++                if expected_hash is not None and not metadata_seen:
++                    raise RuntimeError(
++                        f"Teacher tar {tar_path} does not contain leading "
++                        f"{META_TAR_MEMBER}; cannot verify data alignment."
++                    )
++
++                iteration = int(match.group("iter"))
++                if iteration < start_iteration:
++                    continue
++
++                extracted = tar.extractfile(member)
++                if extracted is None:
++                    raise RuntimeError(
++                        f"Could not read log-probs member '{name}' in '{tar_path}'"
++                    )
++                yield LogprobsTarEntry(
++                    iteration=iteration,
++                    data=extracted.read(),
++                )
++
++    if expected_hash is not None and not metadata_seen:
++        raise RuntimeError(
++            f"Teacher tar {tar_path} does not contain {META_TAR_MEMBER}; "
++            "cannot verify data alignment."
++        )
++
++
++def decode_logprobs_payload(data: bytes) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
++    """Decode one zstd-compressed cached-logits payload."""
++    if not HAVE_ZSTANDARD:
++        raise ImportError(
++            "zstandard is required to decode cached-logits payloads. "
++            "Install via `pip install zstandard`."
++        )
++    data = zstandard.ZstdDecompressor().decompress(data)
++    tensors = torch.load(io.BytesIO(data), weights_only=True)
++    indices_list = [
++        unpack_indices(low, bit17)
++        for low, bit17 in zip(tensors["indices_low"], tensors["bit_17"])
++    ]
++    return tensors["values"], indices_list
++
++
++def detect_saved_dp_size(logprobs_dir: str) -> Optional[int]:
++    """Scan *logprobs_dir* for batched tars and return the saved DP world size."""
++    dp_ranks_found: set[int] = set()
++    for path in storage_glob_with_caching(logprobs_dir, "*.tar"):
++        fname = storage_basename(path)
++        if match := BATCHED_TAR_RE.match(fname):
++            dp_ranks_found.add(int(match.group("dp")))
++    if not dp_ranks_found:
++        return None
++    return max(dp_ranks_found) + 1
++
++
++# NOTE: This function is for interactive debugging purposes
++def load_log_probs_from_tar(
++    tar_path: str,
++    iteration: int,
++) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
++    """Load one iteration from a specific batched tar shard."""
++    for entry in iter_logprobs_tar_entries(tar_path, start_iteration=iteration):
++        if entry.iteration == iteration:
++            return decode_logprobs_payload(entry.data)
++        if entry.iteration > iteration:
++            break
++
++    raise FileNotFoundError(
++        f"No log-probs member found for iteration {iteration} in '{tar_path}'"
++    )
++
++
++class TarShardPrefetcher:
++    """Asynchronously materialize whole tar shards into the MSC cache."""
++
++    def __init__(
++        self,
++        *,
++        enabled: bool,
++        depth: int = 2,
++        max_workers: Optional[int] = None,
++    ):
++        self.enabled = bool(enabled and depth > 0)
++        self.depth = depth
++
++        self._executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
++        self._futures: dict[str, concurrent.futures.Future] = {}
++
++        if self.enabled:
++            self._executor = concurrent.futures.ThreadPoolExecutor(
++                max_workers=max(1, max_workers or self.depth),
++                thread_name_prefix="logits-tar-prefetch",
++            )
++
++    def close(self) -> None:
++        if self._executor is not None:
++            self._executor.shutdown(wait=True)
++            self._executor = None
++        self._futures.clear()
++
++    def __enter__(self) -> "TarShardPrefetcher":
++        return self
++
++    def __exit__(self, exc_type, exc, tb) -> None:
++        self.close()
++
++    def schedule(self, url: str) -> None:
++        if not self.enabled or url in self._futures:
++            return
++        assert self._executor is not None
++        self._futures[url] = self._executor.submit(self._prefetch_url, url)
++
++    def schedule_group(self, urls: Sequence[str]) -> None:
++        for url in urls:
++            self.schedule(url)
++
++    def wait(self, url: str) -> None:
++        future = self._futures.pop(url, None)
++        if future is None:
++            return
++        start = time.monotonic()
++        future.result()
++        waited = time.monotonic() - start
++        if waited > 0.5:
++            logger.warning(
++                "Waited %.3fs for cached-logit tar shard prefetch: %s", waited, url
++            )
++
++    def wait_group(self, urls: Sequence[str]) -> None:
++        for url in urls:
++            self.wait(url)
++
++    def iter_prefetched(self, groups: Iterable[Sequence[str]]) -> Iterator[Tuple[str, ...]]:
++        """Yield URL groups, waiting only when a prefetched group is not ready."""
++        group_list = [tuple(group) for group in groups]
++        if not self.enabled:
++            yield from group_list
++            return
++
++        for idx in range(min(self.depth, len(group_list))):
++            self.schedule_group(group_list[idx])
++
++        for idx, group in enumerate(group_list):
++            next_idx = idx + self.depth
++            if next_idx < len(group_list):
++                self.schedule_group(group_list[next_idx])
++            self.wait_group(group)
++            yield group
++
++    def _prefetch_url(self, url: str) -> None:
++        # Whole-object caching avoids tar-member range bookkeeping while still
++        # keeping the object download ahead of the sequential tar reader.
++        with open_logit_file(url, "rb", prefetch_file=True) as stream:
++            stream.read()

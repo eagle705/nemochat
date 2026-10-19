@@ -1,0 +1,80 @@
+schema_version: 1
+experiment: super35-kd-01-bounded-corpus
+repository: nvidia/Nemotron-Pretraining-Specialized-v1.1
+revision: 13fa979be2e7f7e62913eee0ec5e97c8fd6e24af
+license: cc-by-4.0
+runtime:
+  image: nvcr.io/nvidia/nemo@sha256:fdd6e9c7929b76c8624ddfea939dda345beaf67695d9c3994994c18f9e79b9bf
+  transformers: 5.12.1
+  cpu_only: true
+  approval: parent_review_required_before_execute
+preparation_training_tokens: 10000000
+production_training_budget: null
+weights_basis: fixed_sequence_token_exposure_experiment_design_not_official_NVIDIA
+sources:
+  - key: code_concepts
+    path: Nemotron-Pretraining-Code-Concepts/part_000060.parquet
+    size: 477960523
+    sha256: b3e69c8bb02be54d12e6773a8fde5594af30cd357e539b93326f02cde2ba6559
+    weight: 0.6
+    train_tokens: 6000000
+  - key: algorithmic
+    path: Nemotron-Pretraining-Unconditional-Algorithmic/part_000000.parquet
+    size: 208343534
+    sha256: 706bab9781f6541cb9f40b8af61242e45c6e3dabc0d2f9b3171f08571da37ccb
+    weight: 0.1
+    train_tokens: 1000000
+  - key: formal_logic
+    path: Nemotron-Pretraining-Formal-Logic/part_000000.parquet
+    size: 73074239
+    sha256: b8b641309dec27e836db6a2003d3045c6ed060c8d6a23e3a93100e1c8a3a450b
+    weight: 0.1
+    train_tokens: 1000000
+replay:
+  key: climbmix_replay
+  weight: 0.2
+  train_tokens: 2000000
+  train_prefix: datasets/climbmix/nemochat_baby/native-02/train/corpus
+  validation_prefix: datasets/climbmix/nemochat_baby/native-02/validation/corpus
+  original_heldout_hashes: datasets/climbmix/pilot-20261013-144914/heldout-hashes.json
+  original_heldout_count: 84990
+  original_heldout_sha256: e772538b00a392aabd09bc2a74731b34351b06230064d9f649e75ee01aa28f64
+  source_repository: karpathy/climbmix-400b-shuffle
+  source_revision: 915333b4f8b8684f39aeaafea600fea6f43fb703
+  upstream_repository: nvidia/Nemotron-ClimbMix
+  upstream_revision: 5eaa64b9c0c85b7f56af01d7dffdb0795816b12b
+  already_consumed_by_base: true
+  omit_upstream_clipped_tails: true
+  preparation_receipt: datasets/climbmix/nemochat_baby/control/preparation-status-02.json
+  preparation_receipt_sha256: 6ac9674d4c88f7dd0b304df27c1bfbb3c8207531ce29bee21c1f7c5855427c7a
+excluded_sources:
+  - Nemotron-Pretraining-Economics
+  - Nemotron-Pretraining-Multiple-Choice
+reserved_for_sft: [Agentic, Instruction-Following, BBQ]
+tokenizer:
+  repository: nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-Base-BF16
+  revision: 4ba52e8ffa79e9693936c1a819ac89f551ceeef6
+  path: checkpoints/teachers/nemotron35-super-base-bf16-4ba52e8f
+  eos_id: 11
+  vocab_size: 131072
+  asset_sha256:
+    tokenizer.json: d0432ad8b1c2984a2e2dca82e1933e3fd5628df6e95c51fba4c3ee9950dce299
+    tokenizer_config.json: 97878930a1910c17a84eb2c5a7137a164cf142abb7d0ad7436e72b503b7bdf09
+policy:
+  heldout_modulus: 100
+  heldout_bucket: 0
+  split_seed: nemochat-super35-corpus-v1
+  validation_tokens_per_source: 100000
+  kmmlu_path: results/pretraining/nemochat_baby/sft/data/raw/kmmlu-reserved-questions.json
+  kmmlu_count: 34871
+  kmmlu_revision: d61b3f19e552c576bf5960dd24289763edc36a88
+  additional_benchmark_manifests: []
+  acquisition_byte_cap: 1000000000
+  max_hours: 6
+  max_output_bytes: 8000000000
+  max_replay_scan_tokens: 20000000
+  max_document_tokens: 1000000
+  sequence_length: 4096
+  cycling: false
+  truncation: false
+  objective: all_next_token_LM_plus_native_KD_no_assistant_mask
